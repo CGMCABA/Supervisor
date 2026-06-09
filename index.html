@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supervisor Avanzado</title>
+<style>
+body { margin:0; background:#0d0d0d; color:#fff; font-family: Arial; }
+#header { height:50px; display:flex; justify-content:center; align-items:center; background:#111; }
+.header-title { color:#FBBB0D; font-weight:bold; }
+#main { display:flex; height:calc(100vh - 50px); }
+#map { flex:1; background:#222; }
+#sidebar { width:300px; background:#131313; }
+#analysis-view { display:none; padding:20px; overflow:auto; }
+.card { background:#131313; padding:15px; border:1px solid #222; border-radius:10px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="header-title">
+    <span id="tab-home" style="cursor:pointer">Vista Supervisor</span>
+    <span style="opacity:.4;margin:0 8px">|</span>
+    <span id="tab-analisis" style="cursor:pointer">Análisis</span>
+  </div>
+</div>
+
+<div id="main">
+  <div id="map"></div>
+  <div id="sidebar">Panel operativo</div>
+</div>
+
+<div id="analysis-view">
+  <h2 style="color:#FBBB0D">Análisis Operativo</h2>
+  <div style="display:flex; gap:20px; flex-wrap:wrap">
+
+    <div class="card">
+      <div>Evolución SUC vs SEM</div>
+      <canvas id="chart-trend" width="300" height="150"></canvas>
+    </div>
+
+    <div class="card">
+      <div>Criticidad</div>
+      <canvas id="chart-crit" width="300" height="150"></canvas>
+    </div>
+
+    <div class="card">
+      <div>Top Fallas</div>
+      <canvas id="chart-fallas" width="300" height="150"></canvas>
+    </div>
+
+    <div class="card" id="table-zonas"></div>
+
+    <div class="card" id="table-events"></div>
+
+  </div>
+</div>
+
+<script>
+
+// FAKE DATA (replace by real in your system automatically)
+let sucesosActivos = [
+  {criticidad:'ALTA', baseAsignada:'ZONA 1'},
+  {criticidad:'MEDIA', baseAsignada:'ZONA 2'},
+  {criticidad:'BAJA', baseAsignada:'ZONA 1'}
+];
+
+let semaforosActivos = [
+  {tipoFalla:'APAGADO', coberturaAgentes:'NO', baseAsignada:'ZONA 1'},
+  {tipoFalla:'TITILANTE', coberturaAgentes:'SI', baseAsignada:'ZONA 3'}
+];
+
+function loadTrend(){
+  return [5,6,7,8,6,10].map((v,i)=>({suc:v, sem:v-2}));
+}
+
+window.addEventListener('load', ()=>{
+  document.getElementById('tab-analisis').onclick = ()=>{
+    document.getElementById('main').style.display='none';
+    document.getElementById('analysis-view').style.display='block';
+    drawAll();
+  }
+  document.getElementById('tab-home').onclick = ()=>{
+    document.getElementById('analysis-view').style.display='none';
+    document.getElementById('main').style.display='flex';
+  }
+});
+
+function drawAll(){
+  drawTrend();
+  drawCrit();
+  drawFallas();
+  renderZonas();
+  renderTable();
+}
+
+function drawTrend(){
+  const t = loadTrend();
+  const c = document.getElementById('chart-trend');
+  const ctx = c.getContext('2d');
+  const w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h);
+
+  let max = Math.max(...t.map(x=>x.suc));
+
+  ctx.strokeStyle='#FBBB0D';
+  ctx.beginPath();
+  t.forEach((p,i)=>{
+    let x=i/(t.length-1)*w;
+    let y=h-(p.suc/max)*h;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  });
+  ctx.stroke();
+
+  ctx.strokeStyle='#ef4444';
+  ctx.beginPath();
+  t.forEach((p,i)=>{
+    let x=i/(t.length-1)*w;
+    let y=h-(p.sem/max)*h;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  });
+  ctx.stroke();
+}
+
+function drawCrit(){
+  const c = document.getElementById('chart-crit');
+  const ctx = c.getContext('2d');
+  const crit={ALTA:0,MEDIA:0,BAJA:0};
+  sucesosActivos.forEach(s=>crit[s.criticidad]++);
+
+  const vals=Object.values(crit);
+  const colors=['#ef4444','#FBBB0D','#22c55e'];
+
+  let total=vals.reduce((a,b)=>a+b,0);
+  let start=0;
+  ctx.clearRect(0,0,c.width,c.height);
+  vals.forEach((v,i)=>{
+    let ang=v/total*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(150,75);
+    ctx.arc(150,75,75,start,start+ang);
+    ctx.fillStyle=colors[i];
+    ctx.fill();
+    start+=ang;
+  });
+}
+
+function drawFallas(){
+  const c = document.getElementById('chart-fallas');
+  const ctx = c.getContext('2d');
+
+  const fallas={};
+  semaforosActivos.forEach(s=>{
+    fallas[s.tipoFalla]=(fallas[s.tipoFalla]||0)+1;
+  });
+
+  const keys=Object.keys(fallas);
+  const vals=Object.values(fallas);
+
+  ctx.clearRect(0,0,c.width,c.height);
+
+  vals.forEach((v,i)=>{
+    ctx.fillStyle='#FBBB0D';
+    ctx.fillRect(i*60+20, c.height-10-v*20, 30, v*20);
+  });
+}
+
+function renderZonas(){
+  const el = document.getElementById('table-zonas');
+  const zonas={};
+  [...sucesosActivos,...semaforosActivos].forEach(s=>{
+    zonas[s.baseAsignada]=(zonas[s.baseAsignada]||0)+1;
+  });
+
+  el.innerHTML='<b>Top Zonas</b><br>'+
+    Object.entries(zonas).map(([k,v])=>k+': '+v).join('<br>');
+}
+
+function renderTable(){
+  const el=document.getElementById('table-events');
+  let items=[...sucesosActivos,...semaforosActivos];
+
+  el.innerHTML='<b>Eventos</b><br>' +
+    items.map(i=> (i.criticidad||i.tipoFalla)+' - '+(i.baseAsignada||'')).join('<br>');
+}
+
+</script>
+
+</body>
+</html>
