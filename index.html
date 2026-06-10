@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supervisor Avanzado — Centro de Control CABA</title>
+<style>
+  /* ── TOKENS ── */
+  :root {
+    --gold: #FBBB0D;
+    --gold-dim: rgba(251,187,13,0.15);
+    --gold-dim2: rgba(251,187,13,0.07);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.15);
+    --green: #22c55e;
+    --amber: #f97316;
+    --blue: #38bdf8;
+    --bg: #0a0a0c;
+    --bg2: #111115;
+    --bg3: #18181f;
+    --border: rgba(255,255,255,0.07);
+    --border-gold: rgba(251,187,13,0.3);
+    --text: #e8e8e8;
+    --text-dim: #888;
+    --mono: 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    height: 46px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border-gold);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    position: relative;
+    z-index: 100;
+  }
+  .h-brand {
+    font-family: var(--mono);
+    color: var(--gold);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .h-tabs {
+    display: flex;
+    gap: 4px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .tab-btn {
+    padding: 6px 18px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .tab-btn.active {
+    background: var(--gold-dim);
+    border-color: var(--gold);
+    color: var(--gold);
+    font-weight: bold;
+  }
+  #clock {
+    font-family: var(--mono);
+    color: var(--text-dim);
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+
+  /* ── VIEWS ── */
+  .view { display: none; height: calc(100vh - 46px); }
+  .view.active { display: flex; }
+
+  /* ── VISTA OPERATIVA (original) ── */
+  #view-home { flex-direction: row; }
+  #map { flex: 1; background: #222; }
+  #sidebar {
+    width: 300px;
+    background: var(--bg2);
+    border-left: 1px solid var(--border);
+    padding: 12px;
+    overflow-y: auto;
+  }
+
+  /* ── VISTA ANÁLISIS ── */
+  #view-analisis {
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Barra de filtros superior */
+  #filter-bar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .filter-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .filter-btn {
+    padding: 4px 12px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .filter-btn.active {
+    background: var(--gold-dim);
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  #refresh-btn {
+    margin-left: auto;
+    padding: 4px 14px;
+    border-radius: 3px;
+    border: 1px solid var(--border-gold);
+    background: var(--gold-dim2);
+    color: var(--gold);
+    cursor: pointer;
+    font-size: 11px;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  #refresh-btn:hover { background: var(--gold-dim); }
+  #last-update {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* Grid principal de análisis */
+  #analysis-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 12px;
+    align-content: start;
+  }
+
+  /* ── KPI PILLS (fila 1) ── */
+  .kpi-row {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+  }
+  .kpi {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--gold);
+  }
+  .kpi.red::before { background: var(--red); }
+  .kpi.green::before { background: var(--green); }
+  .kpi.blue::before { background: var(--blue); }
+  .kpi.amber::before { background: var(--amber); }
+  .kpi-value {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .kpi.red .kpi-value { color: var(--red); }
+  .kpi.green .kpi-value { color: var(--green); }
+  .kpi.blue .kpi-value { color: var(--blue); }
+  .kpi.amber .kpi-value { color: var(--amber); }
+  .kpi-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .kpi-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* ── CARDS DE GRÁFICOS ── */
+  .chart-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+  }
+  .chart-card.span2 { grid-column: span 2; }
+  .chart-card.span1 { grid-column: span 1; }
+  .card-title {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-title span { color: var(--gold); font-family: var(--mono); }
+  canvas { width: 100% !important; height: 130px !important; }
+
+  /* ── TABLAS RANKEO ── */
+  .rank-table { width: 100%; border-collapse: collapse; }
+  .rank-table tr { border-bottom: 1px solid var(--border); }
+  .rank-table td { padding: 5px 0; font-size: 12px; }
+  .rank-table td:last-child { text-align: right; font-family: var(--mono); }
+  .rank-bar-wrap { width: 100%; background: var(--bg2); border-radius: 2px; height: 3px; margin-top: 3px; }
+  .rank-bar { height: 3px; border-radius: 2px; background: var(--gold); transition: width 0.5s; }
+
+  /* Badges criticidad */
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  .badge-alta { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+  .badge-media { background: rgba(249,115,22,0.15); color: var(--amber); border: 1px solid var(--amber); }
+  .badge-baja { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid var(--green); }
+
+  /* Involucrados mini-bar */
+  .involucrado-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+  }
+  .inv-label { width: 80px; color: var(--text-dim); font-size: 11px; }
+  .inv-bar-wrap { flex: 1; background: var(--bg2); border-radius: 2px; height: 6px; }
+  .inv-bar { height: 6px; border-radius: 2px; background: var(--blue); }
+  .inv-count { width: 24px; text-align: right; font-family: var(--mono); color: var(--text-dim); font-size: 11px; }
+
+  /* Loading / error */
+  .loading-msg {
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 12px;
+    text-align: center;
+    padding: 20px 0;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .scrollbar-custom::-webkit-scrollbar { width: 4px; }
+  .scrollbar-custom::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-custom::-webkit-scrollbar-thumb { background: var(--border-gold); border-radius: 2px; }
+
+  /* Alerta critica banner */
+  #alert-banner {
+    display: none;
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.4);
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 11px;
+    color: var(--red);
+    letter-spacing: 0.5px;
+    animation: blink-border 1.5s infinite;
+  }
+  @keyframes blink-border {
+    0%,100%{border-color: rgba(239,68,68,0.4)}
+    50%{border-color: rgba(239,68,68,0.9)}
+  }
+
+  /* ── BOTÓN RESUMEN DE TURNO ── */
+  #turno-btn {
+    padding: 4px 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(56,189,248,0.4);
+    background: rgba(56,189,248,0.07);
+    color: var(--blue);
+    cursor: pointer;
+    font-size: 11px;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  #turno-btn:hover { background: rgba(56,189,248,0.15); }
+
+  /* ── MODAL ── */
+  #modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+  }
+  #modal-overlay.open { display: flex; }
+  #modal-box {
+    background: var(--bg2);
+    border: 1px solid var(--border-gold);
+    border-radius: 8px;
+    width: 580px;
+    max-width: 95vw;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #modal-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  #modal-header h2 {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  #modal-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+  }
+  #modal-close:hover { color: var(--text); }
+  #modal-body {
+    padding: 18px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  /* Tabla resumen turno */
+  .turno-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  .turno-table th {
+    text-align: left;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 0 0 6px 0;
+    border-bottom: 1px solid var(--border-gold);
+  }
+  .turno-table td {
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    vertical-align: middle;
+  }
+  .turno-table td:last-child {
+    text-align: right;
+    font-family: var(--mono);
+    color: var(--gold);
+    font-size: 14px;
+    font-weight: bold;
+  }
+  .turno-section-title {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 14px 0 6px;
+  }
+
+  /* Textarea texto traspaso */
+  #texto-traspaso {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.6;
+    padding: 12px;
+    resize: none;
+    height: 140px;
+    outline: none;
+  }
+  #texto-traspaso:focus { border-color: var(--border-gold); }
+  #copy-btn {
+    margin-top: 8px;
+    padding: 6px 16px;
+    border-radius: 3px;
+    border: 1px solid var(--border-gold);
+    background: var(--gold-dim2);
+    color: var(--gold);
+    cursor: pointer;
+    font-size: 11px;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  #copy-btn:hover { background: var(--gold-dim); }
+  #copy-confirm {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 11px;
+    color: var(--green);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  /* ── SPARKLINE TENDENCIA ── */
+  #sparkline-row {
+    grid-column: 1 / -1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  #sparkline-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  #sparkline-canvas {
+    flex: 1;
+    height: 36px !important;
+    width: auto !important;
+  }
+  #sparkline-slots {
+    display: flex;
+    gap: 0;
+    flex: 1;
+    position: relative;
+  }
+  #tendencia-arrow {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  #tendencia-text {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .spark-tick {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .spark-bar-wrap {
+    width: 100%;
+    height: 28px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 1px;
+  }
+  .spark-bar {
+    width: 100%;
+    border-radius: 2px 2px 0 0;
+    min-height: 2px;
+    transition: height 0.4s;
+  }
+  .spark-time {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .spark-val {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<div id="header">
+  <div class="h-brand">◈ CABA · CTRL / SUP</div>
+  <div class="h-tabs">
+    <button class="tab-btn active" onclick="switchTab('home')">Vista Operativa</button>
+    <button class="tab-btn" onclick="switchTab('analisis')">Análisis</button>
+  </div>
+  <div id="clock" style="font-family:monospace"></div>
+</div>
+
+<!-- ══════════════ VISTA OPERATIVA (tu código existente aquí) ══════════════ -->
+<div id="view-home" class="view active" style="flex-direction:row">
+  <div id="map" style="flex:1;background:#1a1a1a;display:flex;align-items:center;justify-content:center;">
+    <span style="color:#444;font-size:14px">Mapa operativo (integrar con tu código existente)</span>
+  </div>
+  <div id="sidebar" class="scrollbar-custom" style="width:300px;background:#111115;border-left:1px solid rgba(255,255,255,0.07);padding:12px;overflow-y:auto;">
+    <div style="color:#666;font-size:12px">Panel lateral operativo (integrar con tu código existente)</div>
+  </div>
+</div>
+
+<!-- ══════════════ VISTA ANÁLISIS ══════════════ -->
+<div id="view-analisis" class="view" style="flex-direction:column">
+
+  <!-- Barra de filtros -->
+  <div id="filter-bar">
+    <span class="filter-label">Filtrar:</span>
+    <button class="filter-btn active" onclick="setFiltro('todos',this)">Todos</button>
+    <button class="filter-btn" onclick="setFiltro('alta',this)">⬤ Alta</button>
+    <button class="filter-btn" onclick="setFiltro('media',this)">⬤ Media</button>
+    <button class="filter-btn" onclick="setFiltro('baja',this)">⬤ Baja</button>
+    <span style="color:rgba(255,255,255,0.1);padding:0 4px">|</span>
+    <button class="filter-btn" onclick="setFiltro('np',this)">Solo NP</button>
+    <button class="filter-btn" onclick="setFiltro('p',this)">Solo P</button>
+    <div id="alert-banner">⚠ ALTA CRITICIDAD DETECTADA</div>
+    <button id="turno-btn" onclick="abrirResumenTurno()">📋 Resumen de Turno</button>
+    <button id="refresh-btn" onclick="cargarDatos()">↺ Actualizar</button>
+    <span id="last-update" class="filter-label"></span>
+  </div>
+
+  <!-- Grid de análisis -->
+  <div id="analysis-grid" class="scrollbar-custom">
+
+    <!-- FILA 1: KPIs -->
+    <div class="kpi-row">
+      <div class="kpi red">
+        <div class="kpi-value" id="kpi-suc-alta">—</div>
+        <div class="kpi-label">Sucesos Alta</div>
+        <div class="kpi-sub" id="kpi-suc-alta-sub"></div>
+      </div>
+      <div class="kpi amber">
+        <div class="kpi-value" id="kpi-suc-total">—</div>
+        <div class="kpi-label">Sucesos Activos</div>
+        <div class="kpi-sub" id="kpi-suc-np"></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-value" id="kpi-sem-total">—</div>
+        <div class="kpi-label">Semáforos con Falla</div>
+        <div class="kpi-sub" id="kpi-sem-sin-cobertura"></div>
+      </div>
+      <div class="kpi blue">
+        <div class="kpi-value" id="kpi-sem-apagado">—</div>
+        <div class="kpi-label">Apagados</div>
+        <div class="kpi-sub">sin luz</div>
+      </div>
+      <div class="kpi green">
+        <div class="kpi-value" id="kpi-carga-bases">—</div>
+        <div class="kpi-label">Bases Activas</div>
+        <div class="kpi-sub" id="kpi-base-top"></div>
+      </div>
+    </div>
+
+    <!-- FILA 2: SPARKLINE TENDENCIA -->
+    <div id="sparkline-row">
+      <span id="sparkline-label">Tendencia horaria</span>
+      <div id="sparkline-slots"></div>
+      <span id="tendencia-arrow">→</span>
+      <span id="tendencia-text">calculando...</span>
+    </div>
+
+    <!-- FILA 3: GRÁFICOS -->
+
+    <!-- Criticidad sucesos (donut) -->
+    <div class="chart-card span1">
+      <div class="card-title">Criticidad Sucesos <span id="lbl-crit-suc">—</span></div>
+      <canvas id="chart-crit-suc"></canvas>
+      <div id="legend-crit-suc"></div>
+    </div>
+
+    <!-- Tipos de falla semáforos (barras) -->
+    <div class="chart-card span1">
+      <div class="card-title">Tipo de Falla Semáforos <span id="lbl-fallas">—</span></div>
+      <canvas id="chart-fallas"></canvas>
+    </div>
+
+    <!-- Carga por base (barras horizontales) -->
+    <div class="chart-card span2">
+      <div class="card-title">Carga Operativa por Base <span style="color:var(--text-dim);font-size:10px">(sucesos + semáforos)</span></div>
+      <div id="chart-bases-wrap"></div>
+    </div>
+
+    <!-- FILA 3 -->
+
+    <!-- Top tipo operación -->
+    <div class="chart-card span1">
+      <div class="card-title">Top Tipos de Operación <span id="lbl-tipoops">—</span></div>
+      <div id="chart-tipoops"></div>
+    </div>
+
+    <!-- Involucrados en sucesos -->
+    <div class="chart-card span1">
+      <div class="card-title">Involucrados en Sucesos</div>
+      <div id="chart-involucrados"></div>
+    </div>
+
+    <!-- P vs NP -->
+    <div class="chart-card span1">
+      <div class="card-title">Programados vs Espontáneos</div>
+      <canvas id="chart-pnp"></canvas>
+      <div id="legend-pnp"></div>
+    </div>
+
+    <!-- Semáforos por comuna -->
+    <div class="chart-card span1">
+      <div class="card-title">Sem. por Comuna <span id="lbl-comunas">—</span></div>
+      <div id="chart-comunas"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  CONFIGURACIÓN
+// ══════════════════════════════════════════════
+const SHEET_SUCESOS_ID = '1KWuWi8kOLCY1JiAsJl-aPqyfMgH3MlhovLTTNJsF-oY';
+const SHEET_SUCESOS_GID = '1147926200';
+const SHEET_SEM_ID     = '1iN0U4NIVAaoY8lun060dhKrAoTeu08cWF8PXLDWQNgI';
+const SHEET_SEM_GID    = '2083244400';
+
+const CSV_SUCESOS = `https://docs.google.com/spreadsheets/d/${SHEET_SUCESOS_ID}/export?format=csv&gid=${SHEET_SUCESOS_GID}`;
+const CSV_SEM     = `https://docs.google.com/spreadsheets/d/${SHEET_SEM_ID}/export?format=csv&gid=${SHEET_SEM_GID}`;
+
+let allSucesos = [], allSemaforos = [];
+let filtroActivo = 'todos';
+
+// ══════════════════════════════════════════════
+//  RELOJ
+// ══════════════════════════════════════════════
+function tickClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}) +
+    ' · ' +
+    now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ══════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (tab === 'analisis') {
+    if (allSucesos.length === 0) cargarDatos();
+    else renderAnalisis();
+  }
+}
+
+// ══════════════════════════════════════════════
+//  FILTROS
+// ══════════════════════════════════════════════
+function setFiltro(f, btn) {
+  filtroActivo = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAnalisis();
+}
+
+function filtrarSucesos(list) {
+  if (filtroActivo === 'alta') return list.filter(s => norm(s.criticidad) === 'ALTA');
+  if (filtroActivo === 'media') return list.filter(s => norm(s.criticidad) === 'MEDIA');
+  if (filtroActivo === 'baja') return list.filter(s => norm(s.criticidad) === 'BAJA');
+  if (filtroActivo === 'np') return list.filter(s => (s.pnp||'').toUpperCase().includes('NP') || (s.pnp||'').toUpperCase().includes('NO P'));
+  if (filtroActivo === 'p') return list.filter(s => (s.pnp||'').toUpperCase() === 'P' || (s.pnp||'').toUpperCase().includes('PROG'));
+  return list;
+}
+
+// ══════════════════════════════════════════════
+//  CSV PARSER
+// ══════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const header = parseCSVRow(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseCSVRow(line);
+    const obj = {};
+    header.forEach((h, i) => { obj[h.trim()] = (vals[i] || '').trim(); });
+    return obj;
+  }).filter(r => Object.values(r).some(v => v));
+}
+
+function parseCSVRow(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
+}
+
+function norm(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+}
+
+// ══════════════════════════════════════════════
+//  CARGA DE DATOS
+// ══════════════════════════════════════════════
+async function cargarDatos() {
+  document.getElementById('last-update').textContent = 'Cargando...';
+  showLoading();
+  try {
+    const [rSuc, rSem] = await Promise.all([
+      fetch(CSV_SUCESOS).then(r => r.text()),
+      fetch(CSV_SEM).then(r => r.text())
+    ]);
+    const rawSuc = parseCSV(rSuc);
+    const rawSem = parseCSV(rSem);
+
+    // Mapear sucesos a objeto normalizado
+    allSucesos = rawSuc.map(r => ({
+      id:           r['ID'] || r['Id'] || '',
+      pnp:          r['P NP'] || r['P/NP'] || '',
+      fecha:        r['FECHA NEC'] || '',
+      hora:         r['HORA'] || '',
+      tipoOp:       norm(r['TIPO OP'] || r['TIPO_OP'] || ''),
+      subtipo:      norm(r['SUBTIPO'] || ''),
+      descripcion:  r['DESCRIPCION SUCESO'] || '',
+      emergencia:   norm(r['EMERGENCIA'] || ''),
+      tenor:        r['TENOR'] || '',
+      calle1:       r['CALLE 1 PRINCIPAL'] || r['CALLE 1'] || '',
+      calle2:       r['CALLE 2 INTERSECCION'] || r['CALLE 2'] || '',
+      criticidad:   norm(r['CRITICIDAD'] || ''),
+      baseAsignada: norm(r['BASE ASIGNADA'] || ''),
+      finalizo:     norm(r['FINALIZO SUCESO'] || ''),
+      particular:   parseInt(r['PARTICULAR'] || '0') || 0,
+      taxi:         parseInt(r['TAXI'] || '0') || 0,
+      bici:         parseInt(r['BICI'] || '0') || 0,
+      moto:         parseInt(r['MOTO'] || '0') || 0,
+      peaton:       parseInt(r['PEATON'] || r['PEATÓN'] || '0') || 0,
+      pesados:      parseInt(r['PESADOS'] || '0') || 0,
+      colectivo:    parseInt(r['COLECTIVO'] || '0') || 0,
+    })).filter(s => s.id || s.calle1);
+
+    // Mapear semáforos
+    allSemaforos = rawSem.map(r => ({
+      id:             r['ID'] || '',
+      calle1:         r['CALLE 1'] || '',
+      calle2:         r['CALLE 2'] || '',
+      tipoFalla:      norm(r['TIPO DE FALLA'] || ''),
+      estado:         norm(r['ESTADO'] || r['ESTADO \nSUCESO'] || ''),
+      estadoSuceso:   norm(r['ESTADO \nSUCESO'] || r['ESTADO SUCESO'] || ''),
+      coberturaAgentes: norm(r['COBERTURA AGENTES'] || ''),
+      baseAsignada:   norm(r['BASE ASIGNADA'] || ''),
+      criticidad:     norm(r['CRITICIDAD'] || ''),
+      zonaSL:         norm(r['ZONAS SL'] || ''),
+      comuna:         norm(r['COMUNA'] || ''),
+      ups:            norm(r['UPS'] || ''),
+      titilante:      norm(r['TITILANTE'] || ''),
+    })).filter(s => s.calle1 || s.id);
+
+    const now = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('last-update').textContent = `Actualizado: ${now}`;
+    renderAnalisis();
+  } catch(e) {
+    console.error(e);
+    document.getElementById('last-update').textContent = 'Error al cargar datos';
+  }
+}
+
+function showLoading() {
+  ['chart-bases-wrap','chart-tipoops','chart-involucrados','chart-comunas','legend-crit-suc','legend-pnp']
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<div class="loading-msg">Cargando...</div>';
+    });
+}
+
+// ══════════════════════════════════════════════
+//  RENDER PRINCIPAL
+// ══════════════════════════════════════════════
+function renderAnalisis() {
+  const suc = filtrarSucesos(allSucesos);
+  const sem = allSemaforos; // semáforos no tienen filtro P/NP
+
+  renderKPIs(suc, sem);
+  renderSparkline(suc, sem);
+  renderCritSuc(suc);
+  renderFallas(sem);
+  renderBases(suc, sem);
+  renderTipoOps(suc);
+  renderInvolucrados(suc);
+  renderPNP(suc);
+  renderComunas(sem);
+  checkAlertas(suc);
+}
+
+// ══════════════════════════════════════════════
+//  KPIs
+// ══════════════════════════════════════════════
+function renderKPIs(suc, sem) {
+  const alta  = suc.filter(s => s.criticidad === 'ALTA').length;
+  const total = suc.length;
+  const np    = suc.filter(s => (s.pnp||'').toUpperCase().includes('N')).length;
+
+  const semTotal       = sem.length;
+  const semSinCob      = sem.filter(s => s.coberturaAgentes === 'NO' || s.coberturaAgentes === 'N').length;
+  const semApagado     = sem.filter(s => s.tipoFalla.includes('APAGADO')).length;
+
+  // bases con carga
+  const basesMap = {};
+  suc.forEach(s => { if(s.baseAsignada) basesMap[s.baseAsignada] = (basesMap[s.baseAsignada]||0)+1; });
+  sem.forEach(s => { if(s.baseAsignada) basesMap[s.baseAsignada] = (basesMap[s.baseAsignada]||0)+1; });
+  const basesActivas = Object.keys(basesMap).length;
+  const topBase = Object.entries(basesMap).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById('kpi-suc-alta').textContent   = alta;
+  document.getElementById('kpi-suc-alta-sub').textContent = alta > 0 ? `${Math.round(alta/total*100)}% del total` : 'Sin críticos';
+  document.getElementById('kpi-suc-total').textContent  = total;
+  document.getElementById('kpi-suc-np').textContent     = `${np} no programados`;
+  document.getElementById('kpi-sem-total').textContent  = semTotal;
+  document.getElementById('kpi-sem-sin-cobertura').textContent = `${semSinCob} sin cobertura`;
+  document.getElementById('kpi-sem-apagado').textContent= semApagado;
+  document.getElementById('kpi-carga-bases').textContent= basesActivas;
+  document.getElementById('kpi-base-top').textContent   = topBase ? `+ cargada: ${topBase[0]}` : '';
+}
+
+// ══════════════════════════════════════════════
+//  DONUT — CRITICIDAD SUCESOS
+// ══════════════════════════════════════════════
+function renderCritSuc(suc) {
+  const counts = { ALTA:0, MEDIA:0, BAJA:0, OTRO:0 };
+  suc.forEach(s => {
+    const c = s.criticidad;
+    if (c === 'ALTA') counts.ALTA++;
+    else if (c === 'MEDIA') counts.MEDIA++;
+    else if (c === 'BAJA') counts.BAJA++;
+    else if(s.criticidad) counts.OTRO++;
+  });
+
+  const labels  = Object.keys(counts).filter(k => counts[k] > 0);
+  const vals    = labels.map(k => counts[k]);
+  const colors  = { ALTA:'#ef4444', MEDIA:'#f97316', BAJA:'#22c55e', OTRO:'#888' };
+  const total   = vals.reduce((a,b)=>a+b,0);
+
+  document.getElementById('lbl-crit-suc').textContent = total;
+  drawDonut('chart-crit-suc', vals, labels.map(l=>colors[l]));
+
+  const leg = document.getElementById('legend-crit-suc');
+  leg.innerHTML = labels.map((l,i) =>
+    `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:11px">
+      <span style="width:8px;height:8px;border-radius:50%;background:${colors[l]};display:inline-block"></span>
+      ${l}: <b>${vals[i]}</b>
+    </span>`
+  ).join('');
+}
+
+// ══════════════════════════════════════════════
+//  BARRAS — TIPOS DE FALLA SEMÁFOROS
+// ══════════════════════════════════════════════
+function renderFallas(sem) {
+  const counts = {};
+  sem.forEach(s => {
+    const t = s.tipoFalla || 'DESCONOCIDO';
+    counts[t] = (counts[t]||0)+1;
+  });
+
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  document.getElementById('lbl-fallas').textContent = sem.length;
+  drawBarChart('chart-fallas', sorted.map(e=>e[1]), sorted.map(e=>shortLabel(e[0])), '#FBBB0D');
+}
+
+// ══════════════════════════════════════════════
+//  BARRAS HORIZONTALES — CARGA POR BASE
+// ══════════════════════════════════════════════
+function renderBases(suc, sem) {
+  const bases = {};
+  suc.forEach(s => {
+    if (!s.baseAsignada) return;
+    if (!bases[s.baseAsignada]) bases[s.baseAsignada] = { suc:0, sem:0 };
+    bases[s.baseAsignada].suc++;
+  });
+  sem.forEach(s => {
+    if (!s.baseAsignada) return;
+    if (!bases[s.baseAsignada]) bases[s.baseAsignada] = { suc:0, sem:0 };
+    bases[s.baseAsignada].sem++;
+  });
+
+  const sorted = Object.entries(bases)
+    .map(([k,v]) => ({ nombre:k, total:v.suc+v.sem, suc:v.suc, sem:v.sem }))
+    .sort((a,b)=>b.total-a.total).slice(0,8);
+
+  if (!sorted.length) {
+    document.getElementById('chart-bases-wrap').innerHTML = '<div class="loading-msg">Sin datos</div>';
+    return;
+  }
+
+  const max = sorted[0].total;
+  const html = sorted.map(b => `
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:11px;color:var(--text)">${b.nombre}</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text-dim)">${b.suc}S + ${b.sem}Sm</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:2px;height:8px;display:flex;overflow:hidden">
+        <div style="width:${b.suc/max*100}%;background:var(--amber);transition:width 0.5s"></div>
+        <div style="width:${b.sem/max*100}%;background:var(--gold);transition:width 0.5s"></div>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('chart-bases-wrap').innerHTML =
+    html +
+    `<div style="margin-top:6px;font-size:10px;color:var(--text-dim)">
+      <span style="color:var(--amber)">■</span> Sucesos &nbsp;
+      <span style="color:var(--gold)">■</span> Semáforos
+    </div>`;
+}
+
+// ══════════════════════════════════════════════
+//  TOP TIPO OPERACIÓN
+// ══════════════════════════════════════════════
+function renderTipoOps(suc) {
+  const counts = {};
+  suc.forEach(s => {
+    const t = s.tipoOp || s.subtipo || 'SIN TIPO';
+    if (t) counts[t] = (counts[t]||0)+1;
+  });
+
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  document.getElementById('lbl-tipoops').textContent = suc.length;
+
+  if (!sorted.length) {
+    document.getElementById('chart-tipoops').innerHTML = '<div class="loading-msg">Sin datos</div>';
+    return;
+  }
+  const max = sorted[0][1];
+  document.getElementById('chart-tipoops').innerHTML = sorted.map(([k,v]) => `
+    <div class="involucrado-row">
+      <span class="inv-label" title="${k}">${shortLabel(k,12)}</span>
+      <div class="inv-bar-wrap">
+        <div class="inv-bar" style="width:${v/max*100}%;background:var(--amber)"></div>
+      </div>
+      <span class="inv-count">${v}</span>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════
+//  INVOLUCRADOS
+// ══════════════════════════════════════════════
+function renderInvolucrados(suc) {
+  const tipos = [
+    { key:'particular', label:'Particular', color:'var(--blue)' },
+    { key:'moto',       label:'Moto',       color:'var(--amber)' },
+    { key:'peaton',     label:'Peatón',     color:'var(--green)' },
+    { key:'colectivo',  label:'Colectivo',  color:'var(--gold)' },
+    { key:'bici',       label:'Bici',       color:'#a78bfa' },
+    { key:'taxi',       label:'Taxi',       color:'#22d3ee' },
+    { key:'pesados',    label:'Pesados',    color:'#f43f5e' },
+  ];
+
+  const totales = {};
+  tipos.forEach(t => { totales[t.key] = suc.reduce((a,s)=>a+(s[t.key]||0),0); });
+  const max = Math.max(...Object.values(totales), 1);
+
+  document.getElementById('chart-involucrados').innerHTML = tipos.map(t => `
+    <div class="involucrado-row">
+      <span class="inv-label">${t.label}</span>
+      <div class="inv-bar-wrap">
+        <div class="inv-bar" style="width:${totales[t.key]/max*100}%;background:${t.color}"></div>
+      </div>
+      <span class="inv-count">${totales[t.key]}</span>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════
+//  DONUT — P vs NP
+// ══════════════════════════════════════════════
+function renderPNP(suc) {
+  let p=0, np=0, otro=0;
+  suc.forEach(s => {
+    const v = (s.pnp||'').toUpperCase().trim();
+    if (v === 'P' || v === 'PROGRAMADO') p++;
+    else if (v === 'NP' || v.includes('NO P')) np++;
+    else otro++;
+  });
+
+  const vals   = [p, np, otro].filter((_,i)=>[p,np,otro][i]>0);
+  const labs   = ['Prog.','No Prog.','S/D'].filter((_,i)=>[p,np,otro][i]>0);
+  const colors = ['#38bdf8','#ef4444','#555'];
+  drawDonut('chart-pnp', vals, colors.slice(0,vals.length));
+
+  document.getElementById('legend-pnp').innerHTML = labs.map((l,i)=>
+    `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:11px">
+      <span style="width:8px;height:8px;border-radius:50%;background:${colors[i]};display:inline-block"></span>
+      ${l}: <b>${vals[i]}</b>
+    </span>`
+  ).join('');
+}
+
+// ══════════════════════════════════════════════
+//  COMUNAS SEMÁFOROS
+// ══════════════════════════════════════════════
+function renderComunas(sem) {
+  const counts = {};
+  sem.forEach(s => {
+    const c = s.comuna || 'S/D';
+    counts[c] = (counts[c]||0)+1;
+  });
+
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  document.getElementById('lbl-comunas').textContent = sem.length;
+
+  if (!sorted.length) {
+    document.getElementById('chart-comunas').innerHTML = '<div class="loading-msg">Sin datos</div>';
+    return;
+  }
+  const max = sorted[0][1];
+  document.getElementById('chart-comunas').innerHTML = sorted.map(([k,v]) => `
+    <div class="involucrado-row">
+      <span class="inv-label">Com. ${k}</span>
+      <div class="inv-bar-wrap">
+        <div class="inv-bar" style="width:${v/max*100}%;background:var(--gold)"></div>
+      </div>
+      <span class="inv-count">${v}</span>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════
+//  ALERTA BANNER
+// ══════════════════════════════════════════════
+function checkAlertas(suc) {
+  const alta = suc.filter(s => s.criticidad === 'ALTA').length;
+  const banner = document.getElementById('alert-banner');
+  if (alta >= 3) {
+    banner.style.display = 'block';
+    banner.textContent = `⚠  ${alta} SUCESOS DE ALTA CRITICIDAD ACTIVOS`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// ══════════════════════════════════════════════
+//  CANVAS HELPERS
+// ══════════════════════════════════════════════
+function drawDonut(canvasId, vals, colors) {
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  // Ajustar canvas al tamaño real
+  c.width = c.offsetWidth || 280;
+  c.height = 130;
+  const ctx = c.getContext('2d');
+  const total = vals.reduce((a,b)=>a+b,0);
+  if (!total) return;
+  const cx = c.width/2, cy = c.height/2;
+  const r = Math.min(cx, cy) - 4;
+  let start = -Math.PI/2;
+  ctx.clearRect(0,0,c.width,c.height);
+  vals.forEach((v,i) => {
+    const ang = v/total * Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,start,start+ang);
+    ctx.fillStyle = colors[i];
+    ctx.fill();
+    start += ang;
+  });
+  // agujero
+  ctx.beginPath();
+  ctx.arc(cx,cy,r*0.55,0,Math.PI*2);
+  ctx.fillStyle = '#18181f';
+  ctx.fill();
+  // número central
+  ctx.fillStyle = '#e8e8e8';
+  ctx.font = `bold ${Math.max(14,r*0.4)}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(total, cx, cy);
+}
+
+function drawBarChart(canvasId, vals, labels, color) {
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  c.width = c.offsetWidth || 280;
+  c.height = 130;
+  const ctx = c.getContext('2d');
+  const w = c.width, h = c.height;
+  const max = Math.max(...vals, 1);
+  const bw = Math.floor(w/vals.length) - 4;
+  ctx.clearRect(0,0,w,h);
+
+  vals.forEach((v,i) => {
+    const x = i*(bw+4) + 2;
+    const bh = Math.round((v/max)*(h-22));
+    ctx.fillStyle = color;
+    ctx.fillRect(x, h-22-bh, bw, bh);
+    // label eje X
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(labels[i]||'', x+bw/2, h-8);
+    // valor
+    ctx.fillStyle = '#ccc';
+    ctx.fillText(v, x+bw/2, h-24-bh);
+  });
+}
+
+function shortLabel(s, max=8) {
+  if (!s) return '';
+  return s.length > max ? s.slice(0,max)+'…' : s;
+}
+
+// ══════════════════════════════════════════════
+//  SPARKLINE — TENDENCIA HORARIA
+// ══════════════════════════════════════════════
+function renderSparkline(suc, sem) {
+  // Agrupa sucesos y semáforos en slots de 30 min para las últimas 4 horas (8 slots)
+  const now = new Date();
+  const SLOTS = 8;
+  const MINS  = 30;
+
+  // Crear slots
+  const slots = Array.from({ length: SLOTS }, (_, i) => {
+    const slotEnd   = new Date(now.getTime() - i * MINS * 60000);
+    const slotStart = new Date(slotEnd.getTime() - MINS * 60000);
+    return { start: slotStart, end: slotEnd, count: 0, label: formatHHMM(slotStart) };
+  }).reverse(); // cronológico
+
+  // Parsear hora de sucesos (campo "hora" formato HH:MM o H:MM)
+  const hoy = now.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  suc.forEach(s => {
+    const t = parseHora(s.hora);
+    if (!t) return;
+    slots.forEach(slot => {
+      if (t >= slot.start && t < slot.end) slot.count++;
+    });
+  });
+  // Semáforos: usar INICIO SUCESO si disponible (campo inicio en allSemaforos no mapeado, usamos conteo plano en slot actual)
+  // Por ahora los semáforos suman al slot actual (representan estado presente)
+  if (sem.length > 0 && slots.length > 0) {
+    slots[slots.length - 1].count += Math.round(sem.length * 0.3); // peso parcial para no distorsionar
+  }
+
+  const vals  = slots.map(s => s.count);
+  const max   = Math.max(...vals, 1);
+  const last2 = vals.slice(-2);
+  const delta = last2[1] - last2[0];
+
+  // Flecha y color tendencia
+  let arrow, color, texto;
+  if (delta > 1) {
+    arrow = '↑'; color = 'var(--red)';
+    texto = `subiendo (+${delta} últ. 30 min)`;
+  } else if (delta < -1) {
+    arrow = '↓'; color = 'var(--green)';
+    texto = `bajando (${delta} últ. 30 min)`;
+  } else {
+    arrow = '→'; color = 'var(--text-dim)';
+    texto = 'estable';
+  }
+
+  document.getElementById('tendencia-arrow').textContent = arrow;
+  document.getElementById('tendencia-arrow').style.color = color;
+  document.getElementById('tendencia-text').textContent  = texto;
+
+  // Render slots como mini barras
+  const container = document.getElementById('sparkline-slots');
+  container.innerHTML = slots.map((slot, i) => {
+    const pct  = Math.round((slot.count / max) * 28);
+    const isLast = i === slots.length - 1;
+    const barColor = isLast ? color : 'rgba(251,187,13,0.4)';
+    return `
+      <div class="spark-tick">
+        <div class="spark-val">${slot.count > 0 ? slot.count : ''}</div>
+        <div class="spark-bar-wrap">
+          <div class="spark-bar" style="height:${Math.max(2,pct)}px;background:${barColor}"></div>
+        </div>
+        <div class="spark-time">${slot.label}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function parseHora(horaStr) {
+  if (!horaStr) return null;
+  const parts = horaStr.trim().match(/(\d{1,2}):(\d{2})/);
+  if (!parts) return null;
+  const d = new Date();
+  d.setHours(parseInt(parts[1]), parseInt(parts[2]), 0, 0);
+  return d;
+}
+
+function formatHHMM(date) {
+  return date.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
+}
+
+// ══════════════════════════════════════════════
+//  AUTO-REFRESH cada 5 minutos
+// ══════════════════════════════════════════════
+setInterval(() => {
+  if (document.getElementById('view-analisis').classList.contains('active')) {
+    cargarDatos();
+  }
+}, 5 * 60 * 1000);
+
+</script>
+<!-- ══════════════ MODAL RESUMEN DE TURNO ══════════════ -->
+<div id="modal-overlay" onclick="cerrarModal(event)">
+  <div id="modal-box">
+    <div id="modal-header">
+      <h2>◈ Resumen de Turno</h2>
+      <button id="modal-close" onclick="cerrarResumenTurno()">✕</button>
+    </div>
+    <div id="modal-body">
+
+      <div class="turno-section-title">Estado Operativo Actual</div>
+      <table class="turno-table">
+        <thead><tr><th>Indicador</th><th style="text-align:right">Valor</th></tr></thead>
+        <tbody id="turno-tabla-body"></tbody>
+      </table>
+
+      <div class="turno-section-title">Base más cargada</div>
+      <div id="turno-bases" style="font-size:12px;margin-bottom:14px"></div>
+
+      <div class="turno-section-title">Texto para traspaso</div>
+      <textarea id="texto-traspaso" readonly></textarea>
+      <div>
+        <button id="copy-btn" onclick="copiarTraspaso()">⧉ Copiar texto</button>
+        <span id="copy-confirm">✓ Copiado</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  MODAL — RESUMEN DE TURNO
+// ══════════════════════════════════════════════
+function abrirResumenTurno() {
+  const suc = filtrarSucesos(allSucesos);
+  const sem = allSemaforos;
+
+  // ── Métricas ──
+  const sucTotal   = suc.length;
+  const sucAlta    = suc.filter(s => s.criticidad === 'ALTA').length;
+  const sucMedia   = suc.filter(s => s.criticidad === 'MEDIA').length;
+  const sucBaja    = suc.filter(s => s.criticidad === 'BAJA').length;
+  const sucNP      = suc.filter(s => (s.pnp||'').toUpperCase().includes('N')).length;
+  const sucEmerg   = suc.filter(s => s.emergencia === 'SI' || s.emergencia === 'S').length;
+  const semTotal   = sem.length;
+  const semApa     = sem.filter(s => s.tipoFalla.includes('APAGADO')).length;
+  const semTit     = sem.filter(s => s.tipoFalla.includes('TITILANTE')).length;
+  const semSinCob  = sem.filter(s => s.coberturaAgentes === 'NO' || s.coberturaAgentes === 'N').length;
+
+  // ── Bases ──
+  const basesMap = {};
+  suc.forEach(s => { if(s.baseAsignada) basesMap[s.baseAsignada] = (basesMap[s.baseAsignada]||0)+1; });
+  sem.forEach(s => { if(s.baseAsignada) basesMap[s.baseAsignada] = (basesMap[s.baseAsignada]||0)+1; });
+  const basesSorted = Object.entries(basesMap).sort((a,b)=>b[1]-a[1]);
+
+  // ── Tabla ──
+  const rows = [
+    ['Sucesos activos totales',     sucTotal],
+    ['⬤ Alta criticidad',           sucAlta],
+    ['⬤ Media criticidad',          sucMedia],
+    ['⬤ Baja criticidad',           sucBaja],
+    ['No programados (NP)',         sucNP],
+    ['Con emergencia',              sucEmerg],
+    ['Semáforos con falla',        semTotal],
+    ['— Apagados',                  semApa],
+    ['— Titilantes',                semTit],
+    ['— Sin cobertura de agentes', semSinCob],
+  ];
+
+  document.getElementById('turno-tabla-body').innerHTML = rows.map(([label, val]) => `
+    <tr>
+      <td style="color:var(--text-dim)">${label}</td>
+      <td>${val}</td>
+    </tr>
+  `).join('');
+
+  // ── Top bases ──
+  document.getElementById('turno-bases').innerHTML = basesSorted.slice(0,5).map(([k,v],i) => `
+    <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
+      <span style="color:${i===0?'var(--gold)':'var(--text-dim)'}">${i+1}. ${k}</span>
+      <span style="font-family:var(--mono);color:${i===0?'var(--gold)':'var(--text-dim)'}">${v} eventos</span>
+    </div>
+  `).join('') || '<span style="color:var(--text-dim)">Sin datos de bases</span>';
+
+  // ── Texto traspaso ──
+  const now = new Date();
+  const fecha = now.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const hora  = now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  const topBase = basesSorted[0] ? `${basesSorted[0][0]} (${basesSorted[0][1]} eventos)` : 'N/D';
+  const nivelGeneral = sucAlta >= 3 ? '🔴 ALTA' : sucAlta >= 1 ? '🟡 MEDIA-ALTA' : '🟢 NORMAL';
+
+  const texto = [
+    `📋 TRASPASO DE TURNO — ${fecha} ${hora}`,
+    ``,
+    `NIVEL OPERATIVO: ${nivelGeneral}`,
+    ``,
+    `SUCESOS:`,
+    `  Total activos:   ${sucTotal}`,
+    `  Alta:            ${sucAlta}`,
+    `  Media:           ${sucMedia}`,
+    `  Baja:            ${sucBaja}`,
+    `  No programados:  ${sucNP}`,
+    `  Con emergencia:  ${sucEmerg}`,
+    ``,
+    `SEMÁFOROS CON FALLA:`,
+    `  Total:           ${semTotal}`,
+    `  Apagados:        ${semApa}`,
+    `  Titilantes:      ${semTit}`,
+    `  Sin cobertura:   ${semSinCob}`,
+    ``,
+    `BASE MÁS CARGADA:  ${topBase}`,
+    ``,
+    `Generado por Sistema de Supervisión CABA`,
+  ].join('\n');
+
+  document.getElementById('texto-traspaso').value = texto;
+  document.getElementById('copy-confirm').style.opacity = '0';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function cerrarResumenTurno() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function cerrarModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) cerrarResumenTurno();
+}
+
+function copiarTraspaso() {
+  const txt = document.getElementById('texto-traspaso').value;
+  navigator.clipboard.writeText(txt).then(() => {
+    const conf = document.getElementById('copy-confirm');
+    conf.style.opacity = '1';
+    setTimeout(() => conf.style.opacity = '0', 2000);
+  });
+}
+
+// ESC cierra modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') cerrarResumenTurno();
+});
+</script>
+
+</body>
