@@ -1,0 +1,3062 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supervisor — Centro de Control CABA</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════
+   TOKENS
+════════════════════════════════════════════ */
+:root {
+  --gold:   #FBBB0D;
+  --gold-a: rgba(251,187,13,0.12);
+  --gold-b: rgba(251,187,13,0.06);
+  --red:    #ef4444;
+  --red-a:  rgba(239,68,68,0.12);
+  --green:  #22c55e;
+  --amber:  #f97316;
+  --blue:   #38bdf8;
+  --purple: #a78bfa;
+  --bg:     #080809;
+  --bg2:    #0f0f12;
+  --bg3:    #161619;
+  --bg4:    #1c1c21;
+  --border: rgba(255,255,255,0.06);
+  --border2:rgba(255,255,255,0.10);
+  --gold-border: rgba(251,187,13,0.25);
+  --text:   #e2e2e6;
+  --text2:  #a0a0aa;
+  --text3:  #505058;
+  --mono:   'JetBrains Mono', monospace;
+  --sans:   'Inter', sans-serif;
+  --map-opacity: 0.7;
+}
+
+/* ── Tema: Oscuro Azul ───────────────────────────────── */
+body.theme-blue {
+  --bg:     #050d1a;
+  --bg2:    #0a1628;
+  --bg3:    #0f1f38;
+  --bg4:    #162847;
+  --border: rgba(56,189,248,0.08);
+  --border2:rgba(56,189,248,0.15);
+  --gold-border: rgba(56,189,248,0.3);
+  --text:   #dceeff;
+  --text2:  #7bafd4;
+  --text3:  #3a6080;
+  --gold:   #38bdf8;
+  --gold-a: rgba(56,189,248,0.12);
+  --gold-b: rgba(56,189,248,0.06);
+}
+
+/* ── Tema: Claro ─────────────────────────────────────── */
+body.theme-light {
+  --bg:     #f0f2f5;
+  --bg2:    #ffffff;
+  --bg3:    #e8eaed;
+  --bg4:    #dde0e6;
+  --border: rgba(0,0,0,0.08);
+  --border2:rgba(0,0,0,0.14);
+  --gold-border: rgba(202,138,4,0.4);
+  --text:   #111827;
+  --text2:  #374151;
+  --text3:  #9ca3af;
+  --gold:   #ca8a04;
+  --gold-a: rgba(202,138,4,0.10);
+  --gold-b: rgba(202,138,4,0.05);
+  --red:    #dc2626;
+  --red-a:  rgba(220,38,38,0.10);
+  --green:  #16a34a;
+  --amber:  #ea580c;
+  --blue:   #0284c7;
+  --map-opacity: 0.9;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%; background: var(--bg);
+  color: var(--text); font-family: var(--sans);
+  font-size: 13px; overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ════════════════════════════════════════════
+   HEADER
+════════════════════════════════════════════ */
+#header {
+  height: 44px; flex-shrink: 0;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--gold-border);
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 18px; position: relative; z-index: 200;
+}
+.h-brand {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--gold); letter-spacing: 3px;
+  text-transform: uppercase; display: flex;
+  align-items: center; gap: 8px;
+}
+.h-brand-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 8px var(--gold);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot { 0%,100%{opacity:1;box-shadow:0 0 8px var(--gold)} 50%{opacity:0.5;box-shadow:0 0 3px var(--gold)} }
+
+.h-tabs { display: flex; gap: 3px; position: absolute; left: 50%; transform: translateX(-50%); }
+.tab-btn {
+  padding: 5px 16px; border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent; color: var(--text3);
+  cursor: pointer; font-size: 11px; font-family: var(--sans);
+  font-weight: 500; letter-spacing: 0.5px;
+  text-transform: uppercase; transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--text2); border-color: var(--border2); }
+.tab-btn.active {
+  background: var(--gold-a); border-color: var(--gold-border);
+  color: var(--gold); font-weight: 600;
+}
+#clock {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text3); letter-spacing: 1px;
+}
+
+/* ════════════════════════════════════════════
+   VIEWS
+════════════════════════════════════════════ */
+#app { display: flex; flex-direction: column; height: 100vh; }
+.view { display: none; flex: 1; overflow: hidden; }
+.view.active { display: flex; }
+
+/* ════════════════════════════════════════════
+   VISTA OPERATIVA
+════════════════════════════════════════════ */
+#view-home { flex-direction: column; }
+
+#op-statsbar {
+  height: 32px; flex-shrink: 0;
+  display: flex; align-items: center;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+}
+.op-s-sep {
+  width: 1px; height: 16px; background: var(--border); flex-shrink: 0;
+}
+.op-s-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 0 16px; height: 100%;
+}
+.op-s-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 500; }
+.op-s-val { font-family: var(--mono); font-size: 15px; font-weight: 700; }
+
+#op-body { display: flex; flex: 1; overflow: hidden; }
+
+/* Lista */
+#op-list-wrap {
+  width: 42%; min-width: 320px; display: flex;
+  flex-direction: column; border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+#op-subheader {
+  height: 36px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px; border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.op-sh-left { display: flex; align-items: center; gap: 10px; }
+.op-sh-count { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--gold); line-height: 1; }
+.op-sh-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; }
+.op-crits { display: flex; gap: 12px; align-items: center; }
+.op-crit-item { display: flex; align-items: center; gap: 5px; }
+.op-crit-dot { width: 6px; height: 6px; border-radius: 50%; }
+.op-crit-label { font-size: 9px; font-weight: 600; letter-spacing: 0.5px; }
+.op-crit-n { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text2); }
+
+#op-list-scroll {
+  flex: 1; overflow-y: auto; padding: 10px;
+}
+#op-list-scroll::-webkit-scrollbar { width: 3px; }
+#op-list-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.op-group-title {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 4px 5px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.op-group-icon { font-size: 13px; }
+.op-group-name { font-size: 9px; font-weight: 600; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; }
+.op-group-cnt { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--gold); }
+
+.op-card {
+  position: relative; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg3);
+  margin-bottom: 5px; overflow: hidden; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.op-card:hover { border-color: var(--border2); background: var(--bg4); }
+.op-card.sel { background: var(--bg4); }
+.op-card-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 8px 0 0 8px; }
+.op-card-inner { padding: 9px 11px 8px 14px; }
+.op-card-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+.op-card-sub { font-size: 9px; font-weight: 600; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; }
+.op-card-badges { display: flex; align-items: center; gap: 7px; }
+.op-card-elapsed {
+  font-family: var(--mono); font-size: 9px; color: var(--text3);
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 1px 5px; border-radius: 3px;
+}
+.op-card-hora { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.op-card-crit { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+.op-card-street {
+  font-family: var(--sans); font-size: 15px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.1;
+  margin-bottom: 1px; color: var(--text);
+}
+.op-card.sel .op-card-street { color: #fff; }
+.op-card-cross { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+.op-card-desc { font-size: 10px; color: var(--text3); line-height: 1.4; }
+.op-card-bar { height: 1px; margin-top: 2px; opacity: 0.3; }
+.op-card.sel .op-card-bar { opacity: 0.6; height: 2px; }
+
+/* Sem cards en lista */
+.op-sem-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 11px 7px 14px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--bg3);
+  margin-bottom: 4px; position: relative; overflow: hidden;
+}
+.op-sem-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.op-sem-body { flex: 1; min-width: 0; }
+.op-sem-tipo { font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 1px; }
+.op-sem-street { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-sem-cross { font-size: 10px; color: var(--text3); }
+.op-sem-cob {
+  font-size: 9px; font-weight: 600; padding: 2px 7px;
+  border-radius: 3px; border: 1px solid; flex-shrink: 0; letter-spacing: 0.3px;
+}
+
+/* Mapa */
+#op-map-wrap { flex: 1; position: relative; background: var(--bg); }
+#op-map { height: 100%; width: 100%; }
+.op-map-shade {
+  position: absolute; inset: 0; pointer-events: none; z-index: 400;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.4) 100%);
+}
+.op-map-counter {
+  position: absolute; top: 10px; right: 10px; z-index: 401;
+  background: rgba(8,8,9,0.85); border: 1px solid var(--border2);
+  padding: 4px 10px; border-radius: 5px;
+  font-family: var(--mono); font-size: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* Ticker */
+#op-ticker {
+  height: 26px; flex-shrink: 0;
+  display: flex; align-items: center; overflow: hidden;
+  background: var(--bg2); border-top: 1px solid var(--border);
+}
+.op-ticker-badge {
+  background: var(--gold); color: #000;
+  font-size: 8px; font-weight: 800; letter-spacing: 1px;
+  text-transform: uppercase; padding: 0 10px; height: 100%;
+  display: flex; align-items: center; flex-shrink: 0;
+}
+.op-ticker-track { display: inline-flex; animation: ticker 55s linear infinite; }
+@keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+.op-ticker-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 20px; border-right: 1px solid var(--border);
+  white-space: nowrap; font-size: 10px;
+}
+
+/* Leaflet overrides */
+.leaflet-container { background: #0a0a0c; }
+.leaflet-tile { filter: brightness(0.75) saturate(0.8); }
+.sup-tooltip {
+  background: rgba(8,8,9,0.9) !important; border: 1px solid rgba(255,255,255,0.12) !important;
+  color: #ccc !important; font-size: 9px !important; font-family: 'Inter', sans-serif !important;
+  font-weight: 600 !important; padding: 2px 7px !important; border-radius: 4px !important;
+  white-space: nowrap !important; box-shadow: none !important;
+}
+.sup-tooltip::before { display: none !important; }
+.leaflet-popup-content-wrapper { background: #161619 !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important; color: #e2e2e6 !important; box-shadow: 0 12px 32px rgba(0,0,0,0.8) !important; }
+.leaflet-popup-tip { background: #161619 !important; }
+.leaflet-popup-content { margin: 12px 14px !important; }
+.leaflet-attribution-flag { display: none !important; }
+
+/* Empty state */
+.op-empty { display: flex; align-items: center; justify-content: center; height: 100%; }
+.op-empty span { font-size: 11px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; }
+
+/* ════════════════════════════════════════════
+   VISTA ANÁLISIS — layout igual a operativa
+════════════════════════════════════════════ */
+#view-analisis { flex-direction: row !important; }
+
+#an-filterbar {
+  display: none; /* moved inside an-list-wrap */
+}
+
+#an-list-wrap {
+  width: 42%; min-width: 280px; max-width: 70%;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg); overflow: hidden;
+}
+#an-filterbar-inner {
+  height: 40px; flex-shrink: 0;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; padding: 0 16px;
+}
+#an-body {
+  overflow-y: auto; padding: 10px 12px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: min-content;
+  gap: 8px; align-content: start; flex: 1;
+}
+
+/* ════ PANEL DE TEMAS ════ */
+.theme-btn, .map-btn {
+  padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  color: #505058; font-size: 10px; font-family: var(--sans);
+  transition: all 0.12s; letter-spacing: 0.3px;
+}
+.theme-btn { flex: 1; text-align: center; }
+.map-btn { width: 100%; text-align: left; }
+.theme-btn:hover, .map-btn:hover {
+  border-color: rgba(251,187,13,0.25);
+  background: rgba(251,187,13,0.04);
+  color: #a0a0aa;
+}
+.theme-btn.active, .map-btn.active {
+  background: rgba(251,187,13,0.08);
+  border-color: rgba(251,187,13,0.3);
+  color: #FBBB0D; font-weight: 600;
+}
+
+/* Leaflet popups — adapt to theme */
+body.theme-light .leaflet-popup-content-wrapper { background: #fff; color: #111; }
+body.theme-light .leaflet-popup-tip { background: #fff; }
+.col-resizer {
+  width: 5px; flex-shrink: 0; cursor: col-resize;
+  background: var(--border); transition: background 0.15s;
+  position: relative; z-index: 10;
+}
+.col-resizer:hover, .col-resizer.dragging { background: var(--gold-border); }
+.col-resizer::after {
+  content: ''; position: absolute;
+  top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 3px; height: 24px;
+  background: rgba(251,187,13,0.25); border-radius: 2px;
+}
+
+/* Filterbar interna análisis */
+#an-filterbar-inner {
+  height: 40px; flex-shrink: 0;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px; padding: 0 12px;
+  overflow-x: auto; white-space: nowrap;
+}
+#an-filterbar-inner::-webkit-scrollbar { display: none; }
+.an-filter-sep { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+.an-fbtn {
+  padding: 3px 9px; border-radius: 4px;
+  border: 1px solid transparent; background: transparent;
+  color: var(--text3); cursor: pointer; font-size: 10px;
+  font-family: var(--sans); font-weight: 500; letter-spacing: 0.3px;
+  transition: all 0.12s; flex-shrink: 0;
+}
+.an-fbtn:hover { color: var(--text2); border-color: var(--border2); }
+.an-fbtn.active { background: var(--gold-a); border-color: var(--gold-border); color: var(--gold); font-weight: 600; }
+#an-alert {
+  display: none; padding: 3px 10px; border-radius: 4px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+  color: var(--red); border: 1px solid rgba(239,68,68,0.3);
+  background: var(--red-a); animation: blink-red 1.5s infinite; flex-shrink: 0;
+}
+@keyframes blink-red { 0%,100%{border-color:rgba(239,68,68,0.3)} 50%{border-color:rgba(239,68,68,0.8)} }
+#an-updatedbtn {
+  margin-left: auto; padding: 4px 10px; border-radius: 4px; flex-shrink: 0;
+  border: 1px solid var(--gold-border); background: var(--gold-b);
+  color: var(--gold); cursor: pointer; font-size: 10px;
+  font-family: var(--sans); font-weight: 500; transition: all 0.12s;
+}
+#an-updatedbtn:hover { background: var(--gold-a); }
+#an-ts { font-family: var(--mono); font-size: 9px; color: var(--text3); flex-shrink: 0; }
+#an-map-side {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; background: var(--bg);
+}
+
+/* Mapa analítico con HUD */
+#an-choro-section {
+  flex: 1;
+  display: flex; flex-direction: column;
+  background: var(--bg);
+}
+#an-map-wrap {
+  flex: 1; position: relative; overflow: hidden;
+}
+#an-map { height: 100%; width: 100%; }
+/* Cards flotantes sobre el mapa */
+.map-hud {
+  position: absolute; z-index: 450;
+  pointer-events: none;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#hud-tl { top: 10px; left: 10px; }
+#hud-tr { top: 10px; right: 10px; align-items: flex-end; }
+#hud-bl { bottom: 32px; left: 10px; }
+#hud-br { bottom: 32px; right: 10px; align-items: flex-end; }
+.hud-card {
+  background: rgba(8,8,9,0.82);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 7px; padding: 8px 12px;
+  backdrop-filter: blur(6px);
+  pointer-events: all;
+  min-width: 130px;
+}
+.hud-card-title {
+  font-size: 8px; font-weight: 600; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--text3); margin-bottom: 6px;
+}
+.hud-stat-row {
+  display: flex; justify-content: space-between;
+  align-items: center; gap: 10px; margin-bottom: 3px;
+}
+.hud-stat-row:last-child { margin-bottom: 0; }
+.hud-stat-label { font-size: 10px; color: var(--text2); }
+.hud-stat-val { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+.hud-bar-wrap { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-top: 2px; }
+.hud-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+/* Mini donut canvas en HUD */
+.hud-donut-wrap { display: flex; align-items: center; gap: 10px; }
+.hud-legend-item { display: flex; align-items: center; gap: 4px; font-size: 9px; color: var(--text2); }
+.hud-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+#an-body::-webkit-scrollbar { width: 3px; }
+#an-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* KPI row */
+.an-kpi-row { grid-column: 1/-1; display: flex; gap: 8px; }
+.an-kpi {
+  flex: 1; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 2px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.15s;
+}
+.an-kpi:hover { border-color: var(--border2); }
+.an-kpi-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 2px; border-radius: 8px 0 0 8px; }
+.an-kpi-val {
+  font-family: var(--mono); font-size: 26px; font-weight: 700;
+  line-height: 1; letter-spacing: -0.5px;
+}
+.an-kpi-label { font-size: 9px; color: var(--text3); font-weight: 500; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 1px; }
+.an-kpi-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+
+/* Sparkline row */
+.an-spark-row {
+  grid-column: 1/-1;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px;
+  display: flex; align-items: center; gap: 14px;
+}
+.an-spark-label { font-size: 9px; color: var(--text3); letter-spacing: 0.8px; text-transform: uppercase; font-weight: 500; flex-shrink: 0; }
+.an-spark-slots { display: flex; flex: 1; gap: 2px; align-items: flex-end; height: 36px; }
+.an-spark-tick { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.an-spark-val { font-family: var(--mono); font-size: 8px; color: var(--text3); height: 10px; line-height: 10px; }
+.an-spark-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.an-spark-bar { width: 100%; border-radius: 2px 2px 0 0; min-height: 2px; transition: height 0.4s; }
+.an-spark-time { font-family: var(--mono); font-size: 8px; color: var(--text3); white-space: nowrap; }
+.an-spark-arrow { font-size: 20px; flex-shrink: 0; }
+.an-spark-trend { font-size: 10px; color: var(--text3); flex-shrink: 0; white-space: nowrap; }
+
+/* Chart cards */
+.an-card {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: border-color 0.15s;
+}
+.an-card:hover { border-color: var(--border2); }
+.an-card.span2 { grid-column: span 2; }
+.an-card.span1 { grid-column: span 1; }
+.an-card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.an-card-title { font-size: 9px; color: var(--text3); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+.an-card-count { font-family: var(--mono); font-size: 12px; color: var(--gold); font-weight: 600; }
+canvas { width: 100% !important; height: 120px !important; }
+
+/* Bar rows (horizontal) */
+.an-bar-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.an-bar-label { width: 85px; font-size: 10px; color: var(--text2); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an-bar-track { flex: 1; height: 5px; background: var(--bg2); border-radius: 3px; overflow: hidden; }
+.an-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.an-bar-n { width: 24px; text-align: right; font-family: var(--mono); font-size: 10px; color: var(--text3); flex-shrink: 0; }
+
+/* Legend */
+.an-legend { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.an-legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text2); }
+.an-legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* Loading */
+.an-loading {
+  color: var(--text3); font-family: var(--mono); font-size: 10px;
+  text-align: center; padding: 18px 0; letter-spacing: 0.5px;
+  animation: fade-pulse 1.5s ease-in-out infinite;
+}
+@keyframes fade-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* Scrollbar global */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ════════════════════════════════════════════
+   PULSO EN VIVO + MODO PRESENTACIÓN
+════════════════════════════════════════════ */
+/* Pulso de refresco en header */
+#live-pulse {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 10px; color: var(--text3);
+  letter-spacing: 0.5px;
+}
+#live-ring {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green); position: relative;
+  box-shadow: 0 0 4px var(--green);
+}
+#live-ring::after {
+  content: ''; position: absolute; inset: -3px;
+  border-radius: 50%; border: 1.5px solid var(--green);
+  opacity: 0; animation: live-ripple 2.5s ease-out infinite;
+}
+@keyframes live-ripple {
+  0%   { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+#live-ring.refreshing { animation: live-flash 0.4s ease-out; }
+@keyframes live-flash {
+  0%   { background: #fff; box-shadow: 0 0 12px #fff; }
+  100% { background: var(--green); box-shadow: 0 0 4px var(--green); }
+}
+
+
+  to   { opacity: 1; }
+}
+
+.sem-time-badge {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  padding: 1px 6px; border-radius: 3px; flex-shrink: 0;
+}
+.sem-time-fresh  { background: rgba(34,197,94,0.12);  color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+.sem-time-medium { background: rgba(251,187,13,0.12); color: #FBBB0D; border: 1px solid rgba(251,187,13,0.3); }
+.sem-time-old    { background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.4); }
+.sem-time-critical{ background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.5);
+  animation: sem-pulse 1.5s ease-in-out infinite; }
+@keyframes sem-pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* Banner de alerta crítica */
+#alert-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 900;
+  pointer-events: none;
+  border: 3px solid transparent;
+  animation: alert-border 1s ease-in-out infinite;
+}
+#alert-overlay.active { display: block; }
+@keyframes alert-border {
+  0%,100% { border-color: rgba(239,68,68,0); box-shadow: inset 0 0 0px rgba(239,68,68,0); }
+  50%      { border-color: rgba(239,68,68,0.7); box-shadow: inset 0 0 40px rgba(239,68,68,0.08); }
+}
+#alert-toast {
+  display: none;
+  position: fixed; top: 54px; left: 50%; transform: translateX(-50%);
+  z-index: 901; pointer-events: none;
+  background: rgba(239,68,68,0.95); color: #fff;
+  padding: 8px 20px; border-radius: 6px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  box-shadow: 0 4px 20px rgba(239,68,68,0.5);
+  animation: toast-in 0.3s ease;
+}
+#alert-toast.active { display: block; }
+@keyframes toast-in { from{opacity:0;transform:translateX(-50%) translateY(-8px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+#comuna-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65); z-index: 998;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(2px);
+}
+#comuna-modal.open { display: flex; }
+#comuna-modal-box {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 10px; width: 500px; max-width: 92vw;
+  max-height: 80vh; display: flex; flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+}
+#comuna-modal-head {
+  padding: 13px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+#comuna-modal-title {
+  font-family: var(--mono); font-size: 11px; color: var(--gold);
+  letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;
+}
+#comuna-modal-body {
+  padding: 14px 16px; overflow-y: auto; flex: 1;
+}
+#comuna-modal-body::-webkit-scrollbar { width: 3px; }
+#comuna-modal-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ════════════════════════════════════════════
+   MODAL RESUMEN DE TURNO
+════════════════════════════════════════════ */
+#modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); z-index: 999;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(3px);
+}
+#modal-overlay.open { display: flex; }
+#modal-box {
+  background: var(--bg2); border: 1px solid var(--gold-border);
+  border-radius: 10px; width: 560px; max-width: 94vw;
+  max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.8);
+}
+#modal-head {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+#modal-head h2 { font-family: var(--mono); font-size: 12px; color: var(--gold); letter-spacing: 2px; text-transform: uppercase; }
+#modal-close { background: none; border: none; color: var(--text3); font-size: 18px; cursor: pointer; padding: 0 4px; transition: color 0.12s; }
+#modal-close:hover { color: var(--text); }
+#modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+
+.turno-section { font-size: 9px; color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; margin: 14px 0 7px; }
+.turno-section:first-child { margin-top: 0; }
+
+.turno-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+.turno-table th { font-size: 9px; color: var(--text3); letter-spacing: 0.8px; text-transform: uppercase; font-weight: 500; padding: 0 0 7px; border-bottom: 1px solid var(--gold-border); text-align: left; }
+.turno-table tr + tr td { border-top: 1px solid var(--border); }
+.turno-table td { padding: 6px 0; font-size: 12px; color: var(--text2); }
+.turno-table td:last-child { text-align: right; font-family: var(--mono); color: var(--gold); font-size: 14px; font-weight: 700; }
+
+.turno-base-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
+
+#turno-textarea {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-family: var(--mono);
+  font-size: 11px; line-height: 1.7; padding: 12px; resize: none;
+  height: 130px; outline: none; transition: border-color 0.12s;
+}
+#turno-textarea:focus { border-color: var(--gold-border); }
+.turno-copy-btn {
+  margin-top: 8px; padding: 6px 14px; border-radius: 4px;
+  border: 1px solid var(--gold-border); background: var(--gold-b);
+  color: var(--gold); cursor: pointer; font-size: 10px;
+  font-weight: 500; transition: all 0.12s;
+}
+.turno-copy-btn:hover { background: var(--gold-a); }
+#turno-copied { font-size: 10px; color: var(--green); margin-left: 10px; opacity: 0; transition: opacity 0.3s; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ════ HEADER ════ -->
+<div id="header">
+  <div class="h-brand">
+    <span class="h-brand-dot"></span>
+    CABA · CTRL / SUP
+  </div>
+  <div class="h-tabs">
+    <button class="tab-btn active" onclick="switchTab('home',this)">Vista Operativa</button>
+    <button class="tab-btn" onclick="switchTab('analisis',this)">Análisis</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div id="live-pulse">
+      <div id="live-ring"></div>
+      <span id="live-label">EN VIVO</span>
+    </div>
+    <!-- Selector tema + mapa -->
+    <div style="position:relative">
+      <button id="btn-theme" onclick="toggleThemePanel()"
+        style="padding:4px 10px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans);transition:all 0.15s;display:flex;align-items:center;gap:5px">
+        🎨 <span id="theme-label">Oscuro</span>
+      </button>
+    </div>
+    <div id="clock"></div>
+  </div>
+</div>
+
+<!-- ════ VISTA OPERATIVA ════ -->
+<div id="view-home" class="view active" style="flex-direction:column">
+
+  <div id="op-statsbar">
+    <div class="op-s-item">
+      <span class="op-s-label">Sucesos</span>
+      <span class="op-s-val" id="ops-suc" style="color:var(--gold)">0</span>
+    </div>
+    <div class="op-s-sep"></div>
+    <div class="op-s-item">
+      <span class="op-s-label">Alta</span>
+      <span class="op-s-val" id="ops-alta" style="color:var(--red)">0</span>
+    </div>
+    <div class="op-s-sep"></div>
+    <div class="op-s-item">
+      <span class="op-s-label">Semáforos</span>
+      <span class="op-s-val" id="ops-sem" style="color:var(--amber)">0</span>
+    </div>
+    <div class="op-s-sep"></div>
+    <div class="op-s-item">
+      <span class="op-s-label">Sin cobertura</span>
+      <span class="op-s-val" id="ops-sc" style="color:var(--red)">0</span>
+    </div>
+    <div class="op-s-sep"></div>
+    <div class="op-s-item">
+      <span class="op-s-label">Apagados</span>
+      <span class="op-s-val" id="ops-ap" style="color:var(--text2)">0</span>
+    </div>
+    <div class="op-s-sep"></div>
+    <!-- Botón congestión en vista operativa -->
+    <div class="op-s-item" style="margin-left:auto">
+      <button id="op-cong-btn" onclick="toggleOpCongestion()"
+        style="padding:3px 11px;border-radius:4px;border:1px solid rgba(249,115,22,0.35);background:transparent;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans);transition:all 0.15s;letter-spacing:0.3px">
+        🚗 Congestión
+      </button>
+    </div>
+  </div>
+
+  <div id="op-body">
+    <div id="op-list-wrap">
+      <div id="op-subheader">
+        <div class="op-sh-left">
+          <span class="op-sh-count" id="op-count">0</span>
+          <span class="op-sh-label">Activos</span>
+        </div>
+        <div class="op-crits" id="op-crits"></div>
+      </div>
+      <div id="op-list-scroll">
+        <div class="op-empty"><span>Cargando datos...</span></div>
+      </div>
+    </div>
+    <!-- Divisor draggable -->
+    <div class="col-resizer" id="op-resizer"></div>
+    <div id="op-map-wrap">
+      <div id="op-map"></div>
+      <div class="op-map-shade"></div>
+      <div class="op-map-counter">
+        <span style="color:var(--text3);font-size:9px;text-transform:uppercase;letter-spacing:0.8px">En mapa</span>
+        <span style="color:var(--gold);font-weight:700" id="op-map-n">0</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="op-ticker">
+    <div class="op-ticker-badge">EN VIVO</div>
+    <div style="flex:1;overflow:hidden">
+      <div class="op-ticker-track" id="op-ticker-track"></div>
+    </div>
+  </div>
+
+
+</div><!-- /view-home -->
+
+<!-- ════ VISTA ANÁLISIS ════ -->
+<div id="view-analisis" class="view">
+
+  <!-- Columna izquierda: filtros + gráficos -->
+  <div id="an-list-wrap">
+    <div id="an-filterbar-inner">
+      <span style="font-size:9px;color:var(--text3);font-weight:500;letter-spacing:0.8px;text-transform:uppercase">Filtrar</span>
+      <div class="an-filter-sep"></div>
+      <button class="an-fbtn active" onclick="setFiltro('todos',this)">Todos</button>
+      <button class="an-fbtn" onclick="setFiltro('alta',this)">Alta</button>
+      <button class="an-fbtn" onclick="setFiltro('media',this)">Media</button>
+      <button class="an-fbtn" onclick="setFiltro('baja',this)">Baja</button>
+      <div class="an-filter-sep"></div>
+      <button class="an-fbtn" onclick="setFiltro('np',this)">Solo NP</button>
+      <button class="an-fbtn" onclick="setFiltro('p',this)">Solo P</button>
+      <button class="an-fbtn" onclick="setFiltro('congestion',this)" style="border-color:rgba(249,115,22,0.4);color:var(--amber)">🚗 Congestión</button>
+      <div id="an-alert">⚠ ALTA CRITICIDAD</div>
+      <button class="an-fbtn" onclick="abrirTurno()" style="border-color:rgba(56,189,248,0.3);color:var(--blue);background:rgba(56,189,248,0.05)">📋 Resumen Operativo</button>
+      <button id="an-updatedbtn" onclick="cargarDatos()">↺ Actualizar</button>
+      <span id="an-ts"></span>
+    </div>
+
+    <div id="an-body">
+
+    <!-- KPIs -->
+    <div class="an-kpi-row">
+      <div class="an-kpi">
+        <div class="an-kpi-accent" style="background:var(--red)"></div>
+        <div class="an-kpi-val" id="kpi-alta" style="color:var(--red)">—</div>
+        <div class="an-kpi-label">Sucesos Alta</div>
+        <div class="an-kpi-sub" id="kpi-alta-s"></div>
+      </div>
+      <div class="an-kpi">
+        <div class="an-kpi-accent" style="background:var(--amber)"></div>
+        <div class="an-kpi-val" id="kpi-suc" style="color:var(--amber)">—</div>
+        <div class="an-kpi-label">Sucesos Activos</div>
+        <div class="an-kpi-sub" id="kpi-suc-s"></div>
+      </div>
+      <div class="an-kpi">
+        <div class="an-kpi-accent" style="background:var(--gold)"></div>
+        <div class="an-kpi-val" id="kpi-sem" style="color:var(--gold)">—</div>
+        <div class="an-kpi-label">Semáforos Falla</div>
+        <div class="an-kpi-sub" id="kpi-sem-s"></div>
+      </div>
+      <div class="an-kpi">
+        <div class="an-kpi-accent" style="background:var(--blue)"></div>
+        <div class="an-kpi-val" id="kpi-apa" style="color:var(--blue)">—</div>
+        <div class="an-kpi-label">Apagados</div>
+        <div class="an-kpi-sub">sin luz</div>
+      </div>
+      <div class="an-kpi">
+        <div class="an-kpi-accent" style="background:var(--green)"></div>
+        <div class="an-kpi-val" id="kpi-bases" style="color:var(--green)">—</div>
+        <div class="an-kpi-label">Bases Activas</div>
+        <div class="an-kpi-sub" id="kpi-bases-s"></div>
+      </div>
+    </div>
+
+    <!-- Sparkline -->
+    <div class="an-spark-row">
+      <span class="an-spark-label">Tendencia horaria</span>
+      <div class="an-spark-slots" id="spark-slots"></div>
+      <span class="an-spark-arrow" id="spark-arrow">→</span>
+      <span class="an-spark-trend" id="spark-trend">calculando...</span>
+    </div>
+
+    <!-- Criticidad sucesos -->
+    <div class="an-card span1">
+      <div class="an-card-head">
+        <span class="an-card-title">Criticidad Sucesos</span>
+        <span class="an-card-count" id="lbl-crit">—</span>
+      </div>
+      <canvas id="chart-crit"></canvas>
+      <div class="an-legend" id="legend-crit"></div>
+    </div>
+
+    <!-- Tipo falla semáforos -->
+    <div class="an-card span1">
+      <div class="an-card-head">
+        <span class="an-card-title">Tipo de Falla · Semáforos</span>
+        <span class="an-card-count" id="lbl-fallas">—</span>
+      </div>
+      <canvas id="chart-fallas"></canvas>
+    </div>
+
+    <!-- Carga por base -->
+    <div class="an-card span2">
+      <div class="an-card-head">
+        <span class="an-card-title">Carga Operativa por Base</span>
+        <span style="font-size:9px;color:var(--text3)">sucesos + semáforos</span>
+      </div>
+      <div id="chart-bases"></div>
+    </div>
+
+    <!-- Top tipo op -->
+    <div class="an-card span1">
+      <div class="an-card-head">
+        <span class="an-card-title">Top Tipos de Operación</span>
+        <span class="an-card-count" id="lbl-tipos">—</span>
+      </div>
+      <div id="chart-tipos"></div>
+    </div>
+
+    <!-- Involucrados -->
+    <div class="an-card span1">
+      <div class="an-card-head">
+        <span class="an-card-title">Involucrados</span>
+      </div>
+      <div id="chart-invol"></div>
+    </div>
+
+    <!-- P vs NP -->
+    <div class="an-card span1">
+      <div class="an-card-head">
+        <span class="an-card-title">Programados vs Espontáneos</span>
+      </div>
+      <canvas id="chart-pnp"></canvas>
+      <div class="an-legend" id="legend-pnp"></div>
+    </div>
+
+    <!-- Comunas -->
+    <div class="an-card span1">
+      <div class="an-card-head">
+        <span class="an-card-title">Semáforos por Comuna</span>
+        <span class="an-card-count" id="lbl-comunas">—</span>
+      </div>
+      <div id="chart-comunas"></div>
+    </div>
+    </div><!-- /an-body -->
+  </div><!-- /an-list-wrap -->
+
+  <!-- Divisor draggable -->
+  <div class="col-resizer" id="an-resizer"></div>
+
+  <!-- Columna derecha: mapa -->
+  <div id="an-map-side">
+  <div id="an-choro-section">
+    <div id="an-map-wrap">
+      <div id="an-map"></div>
+      <!-- Botón Ruta A→B flotante sobre el mapa -->
+      <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:450">
+        <button id="btn-route" onclick="toggleRouteMode()"
+          style="padding:5px 14px;border-radius:5px;border:1px solid rgba(56,189,248,0.25);background:rgba(8,8,9,0.85);color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans);backdrop-filter:blur(6px);transition:all 0.15s;white-space:nowrap">
+          📊 Medir traza
+        </button>
+      </div>
+      <div id="tt-legend">
+        <div style="font-size:8px;color:var(--text3);letter-spacing:1px;margin-bottom:4px">FLUJO DE TRÁFICO</div>
+        <div class="tt-leg"><div class="tt-leg-bar" style="background:#22c55e"></div>Fluido</div>
+        <div class="tt-leg"><div class="tt-leg-bar" style="background:#FBBB0D"></div>Lento</div>
+        <div class="tt-leg"><div class="tt-leg-bar" style="background:#f97316"></div>Congestionado</div>
+        <div class="tt-leg"><div class="tt-leg-bar" style="background:#ef4444"></div>Detenido</div>
+      </div>
+
+      <!-- HUD top-left: Top sucesos críticos -->
+      <div class="map-hud" id="hud-tl">
+        <div class="hud-card" style="min-width:200px">
+          <div class="hud-card-title">🔴 Sucesos más críticos</div>
+          <div id="hud-top-suc"></div>
+        </div>
+      </div>
+
+      <!-- HUD top-right: Emergencias y tenor -->
+      <div class="map-hud" id="hud-tr">
+        <div class="hud-card" style="min-width:148px">
+          <div class="hud-card-title">🚨 Emergencias</div>
+          <div class="hud-stat-row">
+            <span class="hud-stat-label">Activas</span>
+            <span class="hud-stat-val" id="hud-emerg" style="color:var(--red)">—</span>
+          </div>
+          <div style="margin-top:6px;border-top:1px solid rgba(255,255,255,0.06);padding-top:6px">
+            <div class="hud-card-title" style="margin-bottom:4px">Tenor</div>
+            <div id="hud-tenor"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HUD bottom-left: Semáforos sin resolver -->
+      <div class="map-hud" id="hud-bl">
+        <div class="hud-card" style="min-width:170px">
+          <div class="hud-card-title">🚦 Más tiempo activos</div>
+          <div id="hud-sem-old"></div>
+        </div>
+      </div>
+
+      <!-- HUD bottom-right: P vs NP + UPS -->
+      <div class="map-hud" id="hud-br">
+        <div class="hud-card" style="min-width:140px">
+          <div class="hud-card-title">📊 Composición</div>
+          <div class="hud-stat-row">
+            <span class="hud-stat-label">Programados</span>
+            <span class="hud-stat-val" id="hud-p" style="color:var(--blue)">—</span>
+          </div>
+          <div class="hud-stat-row">
+            <span class="hud-stat-label">No programados</span>
+            <span class="hud-stat-val" id="hud-np" style="color:var(--red)">—</span>
+          </div>
+          <div id="hud-pnp-bar" style="margin-top:5px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;display:flex">
+            <div id="hud-p-bar"  style="height:100%;background:var(--blue);transition:width 0.5s"></div>
+            <div id="hud-np-bar" style="height:100%;background:var(--red);transition:width 0.5s"></div>
+          </div>
+          <div style="margin-top:7px;border-top:1px solid rgba(255,255,255,0.06);padding-top:6px">
+            <div class="hud-card-title" style="margin-bottom:4px">UPS activos</div>
+            <div class="hud-stat-row" style="margin:0">
+              <span class="hud-stat-label">Semáforos UPS</span>
+              <span class="hud-stat-val" id="hud-ups" style="color:var(--gold)">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  </div><!-- /an-map-side -->
+
+</div><!-- /view-analisis -->
+</div><!-- /app -->
+
+<!-- ════ PANEL TEMAS (fixed, fuera de cualquier stacking context) ════ -->
+<div id="theme-panel" style="display:none;position:fixed;top:44px;right:12px;z-index:9999;
+  background:#111114;border:1px solid rgba(255,255,255,0.1);border-radius:10px;
+  padding:14px 14px 12px;width:220px;box-shadow:0 16px 60px rgba(0,0,0,0.98)">
+  <div style="font-size:9px;color:#404048;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;font-family:'JetBrains Mono',monospace">Interfaz</div>
+  <div style="display:flex;gap:5px;margin-bottom:14px">
+    <button class="theme-btn active" data-theme="" onclick="setTheme('',this)">Negro</button>
+    <button class="theme-btn" data-theme="blue" onclick="setTheme('blue',this)">Azul</button>
+    <button class="theme-btn" data-theme="light" onclick="setTheme('light',this)">Claro</button>
+  </div>
+  <div style="height:1px;background:rgba(255,255,255,0.05);margin-bottom:12px"></div>
+  <div style="font-size:9px;color:#404048;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;font-family:'JetBrains Mono',monospace">Mapa</div>
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <button class="map-btn active" data-map="dark" onclick="setMapStyle('dark',this)">🌑 Oscuro</button>
+    <button class="map-btn" data-map="blue" onclick="setMapStyle('blue',this)">🌐 Azul oscuro</button>
+    <button class="map-btn" data-map="light" onclick="setMapStyle('light',this)">☀️ Claro</button>
+    <button class="map-btn" data-map="satellite" onclick="setMapStyle('satellite',this)">🛰️ Satelital</button>
+  </div>
+</div>
+
+<!-- ════ ALERTAS CRÍTICAS ════ -->
+<div id="alert-overlay"></div>
+<div id="alert-toast"></div>
+
+<!-- ════ MODAL DETALLE COMUNA ════ -->
+<div id="comuna-modal" onclick="if(event.target===this)cerrarDetalleComuna()">
+  <div id="comuna-modal-box">
+    <div id="comuna-modal-head">
+      <span id="comuna-modal-title">Detalle</span>
+      <button style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px" onclick="cerrarDetalleComuna()">✕</button>
+    </div>
+    <div id="comuna-modal-body"></div>
+  </div>
+</div>
+
+<!-- ════ MODAL TURNO ════ -->
+<div id="modal-overlay" onclick="if(event.target===this)cerrarTurno()">
+  <div id="modal-box">
+    <div id="modal-head">
+      <h2>◈ Resumen Operativo</h2>
+      <button id="modal-close" onclick="cerrarTurno()">✕</button>
+    </div>
+    <div id="modal-body">
+      <div class="turno-section">Estado Operativo</div>
+      <table class="turno-table">
+        <thead><tr><th>Indicador</th><th style="text-align:right">Valor</th></tr></thead>
+        <tbody id="turno-rows"></tbody>
+      </table>
+      <div class="turno-section">Top Bases</div>
+      <div id="turno-bases"></div>
+      <div class="turno-section">Texto para Traspaso</div>
+      <textarea id="turno-textarea" readonly></textarea>
+      <div style="margin-top:8px">
+        <button class="turno-copy-btn" onclick="copiarTurno()">⧉ Copiar texto</button>
+        <span id="turno-copied">✓ Copiado</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ════════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════════
+const CSV_SUCESOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSeZJ7bKW9-eFUwHuNKzwLxxeK7PPyotzjT8JdFrgSKnbkXu9qnB3Yxr5prtk_QgTG3YXU7QWnT2lP4/pub?output=csv';
+const CSV_SEM     = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR_5qf9i2P2a0RkdMM5enNGm_uDugE4Lya7IXsjcLg6X2n6Hbf_I0ikYoft5oHnwuRJETfH6D-GiNts/pub?output=csv';
+const REFRESH_MS  = 5 * 60 * 1000;
+const CYCLE_MS    = 8000;
+
+// ── TomTom Traffic API ────────────────────────────────────────────────────
+const TT_KEY  = 'lIYk4vTf6JVg0qHPYS8SZoSnO2GXJkZi';
+const TT_BBOX = '-58.5312,-34.7065,-58.3351,-34.5266'; // CABA bounding box
+const TT_ZOOM = 12;
+
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+let allSucesos = [], allSemaforos = [], allCongestiones = [];
+let filtroActivo = 'todos';
+// Op state
+let opActivos = [], opSelIdx = 0, opCycleTimer = null;
+let opMap = null, opMarkers = {};
+let geoCache = {}, isGeocoding = false;
+try { geoCache = JSON.parse(localStorage.getItem('sup_geo_v2')||'{}'); } catch(e) {}
+function saveGeo() { try { localStorage.setItem('sup_geo_v2', JSON.stringify(geoCache)); } catch(e) {} }
+
+// ════════════════════════════════════════════
+//  CLOCK
+// ════════════════════════════════════════════
+function tickClock() {
+  const n = new Date();
+  const pad = v => String(v).padStart(2,'0');
+  document.getElementById('clock').textContent =
+    `${pad(n.getDate())}/${pad(n.getMonth()+1)}/${n.getFullYear()} · ${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())} a. m.`;
+}
+setInterval(tickClock,1000); tickClock();
+
+// ════════════════════════════════════════════
+//  TABS
+// ════════════════════════════════════════════
+function switchTab(tab, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  btn.classList.add('active');
+  if (tab === 'home') {
+    // Invalidar tamaño del mapa operativo después de que sea visible
+    [50,150,400].forEach(t=>setTimeout(()=>{ if(opMap) opMap.invalidateSize(); },t));
+    if (!allSucesos.length && !allSemaforos.length) cargarDatos();
+    else updateOp();
+  } else {
+    if (!allSucesos.length && !allSemaforos.length) cargarDatos();
+    else { renderAnalisis(); [50,150,400].forEach(t=>setTimeout(()=>{ if(anMap) anMap.invalidateSize(); },t)); }
+  }
+}
+
+// ════════════════════════════════════════════
+//  CSV PARSER
+// ════════════════════════════════════════════
+function parseCSVRaw(text) {
+  const rows = [];
+  let row=[], field='', inQ=false;
+  for (let i=0; i<text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c==='"' && text[i+1]==='"') { field+='"'; i++; }
+      else if (c==='"') inQ=false;
+      else field+=c;
+    } else {
+      if (c==='"') inQ=true;
+      else if (c===',') { row.push(field.trim()); field=''; }
+      else if (c==='\n') {
+        row.push(field.trim()); field='';
+        if (row.some(c=>c)) rows.push(row);
+        row=[];
+      } else if (c!=='\r') field+=c;
+    }
+  }
+  if (field.trim()||row.length) { row.push(field.trim()); if(row.some(c=>c)) rows.push(row); }
+  return rows;
+}
+function normH(h) {
+  return String(h).trim().toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\n/g,' ').replace(/\r/g,'').replace(/\s+/g,' ');
+}
+function norm(s) { return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }
+function findHeader(rows, keys) {
+  for (let i=0; i<Math.min(40,rows.length); i++) {
+    const nh = rows[i].map(c=>normH(c));
+    if (keys.filter(k=>nh.some(h=>h.includes(k))).length >= 2) return i;
+  }
+  return -1;
+}
+function toObjects(rows, hIdx) {
+  const hdrs = rows[hIdx].map(h=>normH(h));
+  // Cuando hay celdas combinadas en Sheets, los sub-encabezados quedan vacíos
+  // Los llenamos con el nombre del padre + índice para no perderlos
+  let lastNonEmpty = '';
+  const hdrsFixed = hdrs.map((h,i) => {
+    if (h && h.trim()) { lastNonEmpty = h; return h; }
+    return `_COL_${i}`; // placeholder para columnas sin nombre
+  });
+  const out = [];
+  for (let r=hIdx+1; r<rows.length; r++) {
+    const row = rows[r];
+    if (!row||row.every(c=>!c)) continue;
+    const obj={};
+    hdrsFixed.forEach((h,i)=>{ obj[h]=(row[i]||'').trim(); });
+    out.push(obj);
+  }
+  return out;
+}
+
+// ════════════════════════════════════════════
+//  CARGA DE DATOS
+// ════════════════════════════════════════════
+async function cargarDatos() {
+  const ts = document.getElementById('an-ts');
+  if (ts) ts.textContent = 'Cargando...';
+  showLoading();
+
+  const fetchCSV = async url => {
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), 20000);
+    try {
+      const r = await fetch(url, {signal:ctrl.signal});
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.text();
+    } finally { clearTimeout(tid); }
+  };
+
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2,'0');
+  const mm = String(today.getMonth()+1).padStart(2,'0');
+  const yyyy = today.getFullYear();
+  const f1 = `${dd}/${mm}/${yyyy}`;
+  const f2 = `${today.getDate()}/${today.getMonth()+1}/${yyyy}`;
+
+  try {
+    const [csvS, csvSm] = await Promise.all([fetchCSV(CSV_SUCESOS), fetchCSV(CSV_SEM)]);
+
+    // SUCESOS
+    const rsS = parseCSVRaw(csvS);
+    const hiS = findHeader(rsS, ['ID','FECHA','HORA','CALLE','CRITICIDAD','SUBTIPO','TIPO']);
+    const obS = toObjects(rsS, hiS >= 0 ? hiS : 0);
+
+    // Función común de mapeo para un registro
+    const mapSuceso = r => ({
+      id:r['ID']||'', pnp:r['P NP']||r['P/NP']||'',
+      fecha:r['FECHA NEC']||'', hora:r['HORA']||'',
+      tipoOp:norm(r['TIPO OP']||''), subtipo:norm(r['SUBTIPO']||''),
+      descripcion:r['DESCRIPCION SUCESO']||'', emergencia:norm(r['EMERGENCIA']||''),
+      tenor:r['TENOR']||'',
+      calle1:r['CALLE 1 PRINCIPAL']||r['CALLE 1']||'',
+      calle2:r['CALLE 2 INTERSECCION']||r['CALLE 2']||'',
+      criticidad:norm(r['CRITICIDAD']||''), baseAsignada:norm(r['BASE ASIGNADA']||''),
+      finalizo:norm(r['FINALIZO SUCESO']||''),
+      particular:parseInt(r['PARTICULAR']||r['_COL_12']||'0')||0,
+      taxi:      parseInt(r['TAXI']      ||r['_COL_13']||'0')||0,
+      bici:      parseInt(r['BICI']      ||r['_COL_14']||'0')||0,
+      moto:      parseInt(r['MOTO']      ||r['_COL_15']||'0')||0,
+      peaton:    parseInt(r['PEATON']    ||r['PEATÓN'] ||r['_COL_16']||'0')||0,
+      pesados:   parseInt(r['PESADOS']   ||r['_COL_17']||'0')||0,
+      colectivo: parseInt(r['COLECTIVO'] ||r['_COL_18']||'0')||0,
+      enviaAg:norm(r['ENVIA AG']||''),
+      puntoFijo:r['PUNTO FIJO POLICIA/PNA/GNA']||r['PUNTO FIJO POLICIA']||'',
+      linea1:r['Linea 1']||r['LINEA 1']||'',
+      linea2:r['Linea 2']||r['LINEA 2']||'',
+      lat:null, lng:null,
+    });
+
+    const baseFilter = r => {
+      if (!(r['CALLE 1 PRINCIPAL']||r['CALLE 1']||r['ID'])) return false;
+      const f = (r['FECHA NEC']||'').trim();
+      if (f!==f1 && f!==f2) return false;
+      const fin = norm(r['FINALIZO SUCESO']||'');
+      if (fin==='SI'||fin==='S'||fin==='TRUE') return false;
+      return true;
+    };
+
+    // Sucesos normales — incluye CUCC no-congestión, excluye congestiones
+    allSucesos = obS
+      .filter(r => {
+        if (!baseFilter(r)) return false;
+        if (norm(r['SUBTIPO']||'').includes('CONGESTION')) return false;
+        return true;
+      })
+      .map(mapSuceso);
+
+    // Congestiones — solo subtipo CONGESTION, sin filtro CUCC
+    allCongestiones = obS
+      .filter(r => {
+        if (!baseFilter(r)) return false;
+        if (!norm(r['SUBTIPO']||'').includes('CONGESTION')) return false;
+        return true;
+      })
+      .map(mapSuceso);
+
+    // SEMÁFOROS
+    const rsSm = parseCSVRaw(csvSm);
+    const hiSm = findHeader(rsSm, ['CALLE 1','CALLE 2','TIPO DE FALLA','CRITICIDAD','ESTADO','COBERTURA']);
+    const obSm = toObjects(rsSm, hiSm >= 0 ? hiSm : 0);
+    allSemaforos = obSm
+      .filter(r => {
+        if (!(r['CALLE 1']||'').trim()) return false;
+        if (!(r['TIPO DE FALLA']||'').trim()) return false;
+        const e = norm(r['ESTADO']||r['ESTADO SUCESO']||'');
+        if (['CERRADO','FINALIZADO','RESUELTO','CANCELADO'].includes(e)) return false;
+        return true;
+      })
+      .map(r => ({
+        id:r['ID']||'', calle1:r['CALLE 1']||'', calle2:r['CALLE 2']||'',
+        tipoFalla:norm(r['TIPO DE FALLA']||''),
+        estado:norm(r['ESTADO']||''),
+        estadoSuceso:norm(r['ESTADO SUCESO']||r['ESTADO \nSUCESO']||''),
+        coberturaAgentes:norm(r['COBERTURA AGENTES']||''),
+        baseAsignada:norm(r['BASE ASIGNADA']||''),
+        criticidad:norm(r['CRITICIDAD']||''),
+        zonaSL:norm(r['ZONAS SL']||''), comuna:norm(r['COMUNA']||''),
+        inicioSuceso:r['INICIO SUCESO']||r['INICIO']||'',
+        lat:null, lng:null,
+      }));
+
+    const now = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    if (ts) ts.textContent = `${now} · ${allSucesos.length}S / ${allSemaforos.length}Sm / ${allCongestiones.length}C`;
+
+    triggerLivePulse();
+
+    // Actualizar ambas vistas
+    updateOp();
+    renderAnalisis();
+
+
+  } catch(e) {
+    console.error(e);
+    if (ts) ts.textContent = '⚠ ' + (e.name==='AbortError'?'Timeout':e.message);
+  }
+}
+
+function showLoading() {
+  ['chart-bases','chart-tipos','chart-invol','chart-comunas'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<div class="an-loading">Cargando...</div>';
+  });
+  ['kpi-alta','kpi-suc','kpi-sem','kpi-apa','kpi-bases'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '…';
+  });
+}
+
+// ════════════════════════════════════════════
+//  FILTROS ANÁLISIS
+// ════════════════════════════════════════════
+function setFiltro(f, btn) {
+  filtroActivo = f;
+  document.querySelectorAll('.an-fbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAnalisis();
+  if (f === 'congestion') {
+    setTimeout(() => {
+      initAnMap();
+      if (anMap) addTTFlowLayer(anMap);
+    }, 150);
+  } else {
+    if (anMap) removeTTFlowLayer(anMap);
+  }
+}
+function filtrados() {
+  if (filtroActivo==='congestion') return allCongestiones;
+  const s = allSucesos;
+  if (filtroActivo==='alta') return s.filter(x=>x.criticidad==='ALTA');
+  if (filtroActivo==='media') return s.filter(x=>x.criticidad==='MEDIA');
+  if (filtroActivo==='baja') return s.filter(x=>x.criticidad==='BAJA');
+  if (filtroActivo==='np') return s.filter(x=>{const v=norm(x.pnp||'');return v==='NP'||v==='N'||v.startsWith('NO P');});
+  if (filtroActivo==='p') return s.filter(x=>{const v=norm(x.pnp||'');return (v==='P'||v.includes('PROG'))&&v!=='';});
+  return s;
+}
+
+// ════════════════════════════════════════════
+//  RENDER ANÁLISIS
+// ════════════════════════════════════════════
+function renderAnalisis() {
+  const suc = filtrados(), sem = filtroActivo==='p' || filtroActivo==='congestion' ? [] : allSemaforos;
+  renderKPIs(suc,sem); renderSparkline(suc,sem);
+  renderCrit(suc); renderFallas(sem); renderBases(suc,sem);
+  renderTipos(suc); renderInvol(suc); renderPNP(suc); renderComunas(sem);
+  checkAlerta(suc);
+  setTimeout(()=>{ initAnMap(); renderAnMap(suc,sem); }, 80);
+}
+
+function renderKPIs(suc,sem) {
+  const alta = suc.filter(s=>s.criticidad==='ALTA').length;
+  const total = suc.length;
+  const np = suc.filter(s=>{const v=norm(s.pnp||'');return v==='NP'||v==='N'||v.startsWith('NO P');}).length;
+  const semTot = sem.length;
+  const semSC = sem.filter(s=>s.coberturaAgentes==='NO'||s.coberturaAgentes==='N').length;
+  const semAp = sem.filter(s=>s.tipoFalla.includes('APAGADO')).length;
+  const basesMap = {};
+  suc.forEach(s=>{if(s.baseAsignada)basesMap[s.baseAsignada]=(basesMap[s.baseAsignada]||0)+1;});
+  sem.forEach(s=>{if(s.baseAsignada)basesMap[s.baseAsignada]=(basesMap[s.baseAsignada]||0)+1;});
+  const topBase = Object.entries(basesMap).sort((a,b)=>b[1]-a[1])[0];
+  const set = (id,v) => { const e=document.getElementById(id); if(e) e.textContent=v; };
+  set('kpi-alta', alta);
+  set('kpi-alta-s', alta>0?`${Math.round(alta/Math.max(total,1)*100)}% del total`:'Sin críticos');
+  set('kpi-suc', total);
+  set('kpi-suc-s', `${np} no programados`);
+  set('kpi-sem', semTot);
+  set('kpi-sem-s', `${semSC} sin cobertura`);
+  set('kpi-apa', semAp);
+  set('kpi-bases', Object.keys(basesMap).length);
+  set('kpi-bases-s', topBase?`+ cargada: ${topBase[0]}`:'');
+}
+
+function renderSparkline(suc,sem) {
+  const now = new Date(), SLOTS=8, MINS=30;
+  const slots = Array.from({length:SLOTS},(_,i)=>{
+    const end = new Date(now.getTime()-i*MINS*60000);
+    const start = new Date(end.getTime()-MINS*60000);
+    return {start,end,count:0,label:fmtHHMM(start)};
+  }).reverse();
+  suc.forEach(s=>{
+    const t=parseHora(s.hora); if(!t) return;
+    slots.forEach(sl=>{ if(t>=sl.start&&t<sl.end) sl.count++; });
+  });
+  if(sem.length&&slots.length) slots[slots.length-1].count+=Math.round(sem.length*0.25);
+  const vals=slots.map(s=>s.count), max=Math.max(...vals,1);
+  const last2=vals.slice(-2), delta=last2[1]-last2[0];
+  let arrow='→', color='var(--text3)', trend='estable';
+  if(delta>1){arrow='↑';color='var(--red)';trend=`+${delta} últ. 30min`;}
+  else if(delta<-1){arrow='↓';color='var(--green)';trend=`${delta} últ. 30min`;}
+  const ae=document.getElementById('spark-arrow'), te=document.getElementById('spark-trend');
+  if(ae){ae.textContent=arrow;ae.style.color=color;}
+  if(te){te.textContent=trend;te.style.color=color;}
+  const cont=document.getElementById('spark-slots'); if(!cont) return;
+  cont.innerHTML=slots.map((sl,i)=>{
+    const h=Math.max(3,Math.round(sl.count/max*28));
+    const isLast=i===slots.length-1;
+    const bc=isLast?color:'rgba(251,187,13,0.3)';
+    return `<div class="an-spark-tick">
+      <div class="an-spark-val">${sl.count>0?sl.count:''}</div>
+      <div class="an-spark-bar-wrap"><div class="an-spark-bar" style="height:${h}px;background:${bc}"></div></div>
+      <div class="an-spark-time">${sl.label}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderCrit(suc) {
+  const counts={ALTA:0,MEDIA:0,BAJA:0,OTRO:0};
+  suc.forEach(s=>{
+    if(s.criticidad==='ALTA') counts.ALTA++;
+    else if(s.criticidad==='MEDIA') counts.MEDIA++;
+    else if(s.criticidad==='BAJA') counts.BAJA++;
+    else if(s.criticidad) counts.OTRO++;
+  });
+  const labels=Object.keys(counts).filter(k=>counts[k]>0);
+  const vals=labels.map(k=>counts[k]);
+  const colors={ALTA:'#ef4444',MEDIA:'#f97316',BAJA:'#22c55e',OTRO:'#666'};
+  const total=vals.reduce((a,b)=>a+b,0);
+  const lbl=document.getElementById('lbl-crit'); if(lbl) lbl.textContent=total;
+  drawDonut('chart-crit',vals,labels.map(l=>colors[l]));
+  const leg=document.getElementById('legend-crit'); if(!leg) return;
+  leg.innerHTML=labels.map((l,i)=>`
+    <div class="an-legend-item">
+      <span class="an-legend-dot" style="background:${colors[l]}"></span>
+      <span>${l}: <b>${vals[i]}</b></span>
+    </div>`).join('');
+}
+
+function renderFallas(sem) {
+  const counts={};
+  sem.forEach(s=>{const t=s.tipoFalla||'OTRO'; counts[t]=(counts[t]||0)+1;});
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const lbl=document.getElementById('lbl-fallas'); if(lbl) lbl.textContent=sem.length;
+  drawBarChart('chart-fallas',sorted.map(e=>e[1]),sorted.map(e=>shortLbl(e[0])),'#FBBB0D');
+}
+
+function renderBases(suc,sem) {
+  const bases={};
+  suc.forEach(s=>{if(!s.baseAsignada)return; if(!bases[s.baseAsignada])bases[s.baseAsignada]={s:0,sm:0}; bases[s.baseAsignada].s++;});
+  sem.forEach(s=>{if(!s.baseAsignada)return; if(!bases[s.baseAsignada])bases[s.baseAsignada]={s:0,sm:0}; bases[s.baseAsignada].sm++;});
+  const sorted=Object.entries(bases).map(([k,v])=>({n:k,t:v.s+v.sm,s:v.s,sm:v.sm})).sort((a,b)=>b.t-a.t).slice(0,8);
+  const el=document.getElementById('chart-bases'); if(!el) return;
+  if(!sorted.length){el.innerHTML='<div class="an-loading">Sin datos</div>';return;}
+  const max=sorted[0].t;
+  el.innerHTML=sorted.map(b=>`
+    <div style="margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:10px;color:var(--text2)">${b.n}</span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${b.s}S · ${b.sm}Sm</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:3px;height:6px;display:flex;overflow:hidden">
+        <div style="width:${b.s/max*100}%;background:var(--amber);transition:width 0.5s"></div>
+        <div style="width:${b.sm/max*100}%;background:var(--gold);transition:width 0.5s"></div>
+      </div>
+    </div>`).join('')+
+    `<div style="display:flex;gap:12px;margin-top:6px">
+      <span style="font-size:9px;color:var(--text3)"><span style="color:var(--amber)">■</span> Sucesos</span>
+      <span style="font-size:9px;color:var(--text3)"><span style="color:var(--gold)">■</span> Semáforos</span>
+    </div>`;
+}
+
+function renderTipos(suc) {
+  const counts={};
+  suc.forEach(s=>{const t=s.tipoOp||s.subtipo||'SIN TIPO'; if(t) counts[t]=(counts[t]||0)+1;});
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  const lbl=document.getElementById('lbl-tipos'); if(lbl) lbl.textContent=suc.length;
+  const el=document.getElementById('chart-tipos'); if(!el) return;
+  if(!sorted.length){el.innerHTML='<div class="an-loading">Sin datos</div>';return;}
+  const max=sorted[0][1];
+  el.innerHTML=sorted.map(([k,v])=>`
+    <div class="an-bar-row">
+      <span class="an-bar-label" title="${k}">${shortLbl(k,13)}</span>
+      <div class="an-bar-track"><div class="an-bar-fill" style="width:${v/max*100}%;background:var(--amber)"></div></div>
+      <span class="an-bar-n">${v}</span>
+    </div>`).join('');
+}
+
+function renderInvol(suc) {
+  const tipos=[
+    {k:'particular',l:'Particular',c:'var(--blue)'},
+    {k:'moto',l:'Moto',c:'var(--amber)'},
+    {k:'peaton',l:'Peatón',c:'var(--green)'},
+    {k:'colectivo',l:'Colectivo',c:'var(--gold)'},
+    {k:'bici',l:'Bici',c:'var(--purple)'},
+    {k:'taxi',l:'Taxi',c:'#22d3ee'},
+    {k:'pesados',l:'Pesados',c:'#f43f5e'},
+  ];
+  const tot={};
+  tipos.forEach(t=>{ tot[t.k]=suc.reduce((a,s)=>a+(s[t.k]||0),0); });
+  const max=Math.max(...Object.values(tot),1);
+  const el=document.getElementById('chart-invol'); if(!el) return;
+  el.innerHTML=tipos.map(t=>`
+    <div class="an-bar-row">
+      <span class="an-bar-label">${t.l}</span>
+      <div class="an-bar-track"><div class="an-bar-fill" style="width:${tot[t.k]/max*100}%;background:${t.c}"></div></div>
+      <span class="an-bar-n">${tot[t.k]}</span>
+    </div>`).join('');
+}
+
+function renderPNP(suc) {
+  let p=0,np=0,sd=0;
+  suc.forEach(s=>{
+    const v=norm(s.pnp||'');
+    if(v==='P'||v.includes('PROG')) p++;
+    else if(v==='NP'||v.includes('NO P')) np++;
+    else sd++;
+  });
+  const vals=[p,np,sd].filter((_,i)=>[p,np,sd][i]>0);
+  const labs=['Prog.','No Prog.','S/D'].filter((_,i)=>[p,np,sd][i]>0);
+  const colors=['#38bdf8','#ef4444','#444'];
+  drawDonut('chart-pnp',vals,colors.slice(0,vals.length));
+  const leg=document.getElementById('legend-pnp'); if(!leg) return;
+  leg.innerHTML=labs.map((l,i)=>`
+    <div class="an-legend-item">
+      <span class="an-legend-dot" style="background:${colors[i]}"></span>
+      <span>${l}: <b>${vals[i]}</b></span>
+    </div>`).join('');
+}
+
+function renderComunas(sem) {
+  const counts={};
+  sem.forEach(s=>{const c=s.comuna||'S/D'; counts[c]=(counts[c]||0)+1;});
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const lbl=document.getElementById('lbl-comunas'); if(lbl) lbl.textContent=sem.length;
+  const el=document.getElementById('chart-comunas'); if(!el) return;
+  if(!sorted.length){el.innerHTML='<div class="an-loading">Sin datos</div>';return;}
+  const max=sorted[0][1];
+  el.innerHTML=sorted.map(([k,v])=>`
+    <div class="an-bar-row">
+      <span class="an-bar-label">Com. ${k}</span>
+      <div class="an-bar-track"><div class="an-bar-fill" style="width:${v/max*100}%;background:var(--gold)"></div></div>
+      <span class="an-bar-n">${v}</span>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════
+//  TIEMPO ACTIVO SEMÁFOROS
+// ════════════════════════════════════════════
+function calcSemMinutes(inicioStr) {
+  if (!inicioStr || !inicioStr.trim()) return null;
+  const s = inicioStr.trim();
+  let date = null;
+  const m1 = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})[,\s]+(\d{1,2}):(\d{2})/);
+  if (m1) date = new Date(`${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}T${m1[4].padStart(2,'0')}:${m1[5]}:00-03:00`);
+  if (!date) {
+    const m2 = s.match(/^(\d{1,2}):(\d{2})/);
+    if (m2) {
+      const ar = new Date(Date.now() - 3*60*60*1000);
+      date = new Date(`${ar.toISOString().slice(0,10)}T${m2[1].padStart(2,'0')}:${m2[2]}:00-03:00`);
+    }
+  }
+  if (!date || isNaN(date)) return null;
+  const diff = Math.floor((Date.now() - date.getTime()) / 60000);
+  return diff >= 0 && diff < 4320 ? diff : null;
+}
+
+function semTimeBadge(mins) {
+  if (mins === null) return '';
+  const h = Math.floor(mins/60), m = mins%60;
+  const label = h > 0 ? `${h}h ${m}m` : `${m}m`;
+  let cls;
+  if (mins < 60)       cls = 'sem-time-fresh';
+  else if (mins < 180) cls = 'sem-time-medium';
+  else if (mins < 360) cls = 'sem-time-old';
+  else                 cls = 'sem-time-critical';
+  return `<span class="sem-time-badge ${cls}">${label}</span>`;
+}
+
+// ════════════════════════════════════════════
+//  SISTEMA DE ALERTAS
+// ════════════════════════════════════════════
+let _alertState = { semCritCount:0, semOldCount:0 };
+let _toastTimer = null;
+
+function mostrarToast(msg) {
+  const el = document.getElementById('alert-toast'); if(!el) return;
+  el.textContent = msg;
+  el.classList.add('active');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(()=>el.classList.remove('active'), 6000);
+}
+
+function checkAlerta(suc) {
+  // Banner análisis
+  const alta = suc.filter(s=>s.criticidad==='ALTA').length;
+  const el = document.getElementById('an-alert'); if(el) {
+    if(alta>=3){el.style.display='block';el.textContent=`⚠ ${alta} SUCESOS ALTA CRITICIDAD`;}
+    else el.style.display='none';
+  }
+
+  // Semáforos críticos
+  const semCrit = allSemaforos.filter(s=>
+    ['ALTA','CRITICA','CRITICO'].includes((s.criticidad||'').toUpperCase())
+  ).length;
+
+  // Semáforos +3h sin cobertura
+  const semOld = allSemaforos.filter(s=>{
+    const mins = calcSemMinutes(s.inicioSuceso);
+    const nocob = s.coberturaAgentes==='NO'||s.coberturaAgentes==='N';
+    return mins!==null && mins>=180 && nocob;
+  }).length;
+
+  const overlay = document.getElementById('alert-overlay');
+  const hayAlerta = semCrit>0 || semOld>0;
+  if(overlay) overlay.classList.toggle('active', hayAlerta);
+
+  // Toast solo si empeoró
+  if(semCrit > _alertState.semCritCount)
+    mostrarToast(`⚠ ${semCrit} SEMÁFORO${semCrit>1?'S':''} CRÍTICO${semCrit>1?'S':''}`);
+  else if(semOld > _alertState.semOldCount)
+    mostrarToast(`⏱ ${semOld} SEMÁFORO${semOld>1?'S':''} +3H SIN COBERTURA`);
+
+  _alertState = { semCritCount:semCrit, semOldCount:semOld };
+}
+
+
+// ════════════════════════════════════════════
+//  CANVAS HELPERS — animados con tooltips
+// ════════════════════════════════════════════
+function drawDonut(id, vals, colors) {
+  const c = document.getElementById(id); if (!c) return;
+  c.width = c.offsetWidth || 260; c.height = 120;
+  const ctx = c.getContext('2d');
+  const total = vals.reduce((a,b)=>a+b,0); if (!total) return;
+  const cx = c.width/2, cy = c.height/2, r = Math.min(cx,cy)-4;
+  let startBase = -Math.PI/2;
+  const segs = vals.map((v,i) => {
+    const s = { start:startBase, end:startBase + v/total*Math.PI*2, color:colors[i], val:v };
+    startBase = s.end; return s;
+  });
+  let prog = 0;
+  const draw = () => {
+    ctx.clearRect(0,0,c.width,c.height);
+    segs.forEach(s => {
+      const end = s.start + (s.end-s.start)*Math.min(prog,1);
+      ctx.beginPath(); ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,r,s.start,end);
+      ctx.fillStyle = s.color; ctx.fill();
+    });
+    ctx.beginPath(); ctx.arc(cx,cy,r*0.58,0,Math.PI*2);
+    ctx.fillStyle = '#161619'; ctx.fill();
+    ctx.fillStyle = '#e2e2e6';
+    ctx.font = `700 ${Math.max(13,r*0.38)}px JetBrains Mono,monospace`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(total,cx,cy);
+    if (prog < 1) { prog+=0.07; requestAnimationFrame(draw); }
+  };
+  draw();
+  // Tooltip hover
+  c.onmousemove = (e) => {
+    const rect=c.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*(c.width/rect.width), my=(e.clientY-rect.top)*(c.height/rect.height);
+    const dx=mx-cx, dy=my-cy, dist=Math.sqrt(dx*dx+dy*dy);
+    if (dist<r*0.58||dist>r) { c.title=''; return; }
+    let ang=Math.atan2(dy,dx); if(ang<-Math.PI/2) ang+=Math.PI*2;
+    const hit=segs.find(s=>ang>=s.start&&ang<s.end);
+    if (hit) c.title=`${hit.val} (${Math.round(hit.val/total*100)}%)`;
+  };
+  c.onmouseleave = () => c.title='';
+}
+
+function drawBarChart(id, vals, labels, color) {
+  const c = document.getElementById(id); if (!c) return;
+  c.width = c.offsetWidth||260; c.height = 120;
+  const ctx = c.getContext('2d');
+  const w=c.width, h=c.height, max=Math.max(...vals,1);
+  const bw = Math.max(6, Math.floor(w/vals.length)-5);
+  const targets = vals.map(v=>Math.round((v/max)*(h-22)));
+  let prog = 0;
+  const draw = () => {
+    ctx.clearRect(0,0,w,h);
+    vals.forEach((v,i) => {
+      const x=i*(bw+5)+2, bh=Math.round(targets[i]*Math.min(prog,1));
+      const grad=ctx.createLinearGradient(x,h-22-bh,x,h-22);
+      grad.addColorStop(0,color); grad.addColorStop(1,color+'66');
+      ctx.fillStyle=grad;
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(x,h-22-bh,bw,Math.max(bh,1),[2,2,0,0]);
+      else ctx.rect(x,h-22-bh,bw,Math.max(bh,1));
+      ctx.fill();
+      ctx.fillStyle='#505058'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(labels[i]||'',x+bw/2,h-7);
+      if(v>0&&prog>=1){ctx.fillStyle='#a0a0aa'; ctx.fillText(v,x+bw/2,h-26-targets[i]);}
+    });
+    if(prog<1){prog+=0.07;requestAnimationFrame(draw);}
+  };
+  draw();
+  c.onmousemove=(e)=>{
+    const rect=c.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*(c.width/rect.width);
+    const idx=Math.floor(mx/(bw+5));
+    c.title=(idx>=0&&idx<vals.length&&vals[idx]>0)?`${labels[idx]}: ${vals[idx]}`:'';
+  };
+  c.onmouseleave=()=>c.title='';
+}
+
+function shortLbl(s,max=9) { return (s||'').length>max?s.slice(0,max)+'…':s||''; }
+function fmtHHMM(d) { return d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}); }
+function parseHora(s) {
+  if(!s) return null;
+  const m=s.trim().match(/(\d{1,2}):(\d{2})/); if(!m) return null;
+  const d=new Date(); d.setHours(+m[1],+m[2],0,0); return d;
+}
+
+// ════════════════════════════════════════════
+//  MAPA ANALÍTICO + HUD
+// ════════════════════════════════════════════
+let anMap = null, anMarkers = [];
+
+function initAnMap() {
+  if (anMap) return;
+  const el = document.getElementById('an-map');
+  if (!el || el.offsetHeight < 10) return;
+  anMap = L.map('an-map', {
+    center: [-34.617, -58.437], zoom: 12,
+    zoomControl: false, scrollWheelZoom: true,
+    doubleClickZoom: true, dragging: true,
+    keyboard: true, boxZoom: true,
+  });
+  applyBaseTile(anMap);
+  // Click handler compartido: TomTom info + routing
+  anMap.on('click', onTTMapClick);
+}
+
+function renderAnMap(suc, sem) {
+  const el = document.getElementById('an-map');
+  if (!el) return;
+  initAnMap();
+  if (anMap) anMap.invalidateSize();
+
+  // ── Markers en el mapa (reutiliza geoCache del mapa operativo) ────────────
+  anMarkers.forEach(m => anMap.removeLayer(m));
+  anMarkers = [];
+
+  // ── Sucesos geocodificados ─────────────────────────────────────────────────
+  suc.forEach(s => {
+    if (s.lat == null || s.lng == null) return;
+    const color = critColor(s.criticidad);
+    const radius = s.criticidad==='ALTA' ? 10 : s.criticidad==='MEDIA' ? 7 : 6;
+    const m = L.circleMarker([s.lat, s.lng], {
+      radius, fillColor: color,
+      color: 'rgba(0,0,0,0.5)', weight: 1.5, fillOpacity: 0.88,
+    });
+
+    const dir = s.calle1 + (s.calle2 && s.calle2!=='-' ? ' y '+opEsc(s.calle2) : '');
+    const elapsed = calcElapsedMinutes(s.hora);
+    m.bindPopup(`
+      <div style="min-width:200px;font-family:Inter,sans-serif;font-size:12px">
+        <div style="color:${color};font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px">
+          ${opEsc(s.tipoOp||'')}${s.subtipo?' · '+opEsc(s.subtipo):''}
+        </div>
+        <div style="font-size:15px;font-weight:700;text-transform:uppercase;margin-bottom:2px;color:#fff">${opEsc(s.calle1)}</div>
+        ${s.calle2&&s.calle2!=='-'?`<div style="color:#888;font-size:10px;margin-bottom:5px">y ${opEsc(s.calle2)}</div>`:''}
+        ${s.descripcion?`<div style="color:#777;font-size:10px;margin-bottom:6px;line-height:1.4">${opEsc(s.descripcion.slice(0,100))}${s.descripcion.length>100?'…':''}</div>`:''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+          ${s.criticidad?`<span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;background:${color}20;color:${color}">${opEsc(s.criticidad)}</span>`:''}
+          ${s.pnp?`<span style="padding:2px 7px;border-radius:3px;font-size:9px;background:rgba(255,255,255,0.06);color:#aaa">${opEsc(s.pnp)}</span>`:''}
+          ${s.emergencia==='SI'||s.emergencia==='S'?`<span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:#ef4444">🚨 EMERGENCIA</span>`:''}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10px;color:#666;margin-top:4px;border-top:1px solid rgba(255,255,255,0.06);padding-top:5px">
+          ${s.hora?`<span>🕐 ${s.hora.slice(0,5)}</span>`:''}
+          ${elapsed?`<span>⏱ ${elapsed}</span>`:''}
+          ${s.baseAsignada?`<span>📍 ${opEsc(s.baseAsignada)}</span>`:''}
+          ${s.tenor?`<span>📋 ${opEsc(s.tenor)}</span>`:''}
+        </div>
+      </div>`, { maxWidth: 240 });
+
+    m.addTo(anMap);
+    anMarkers.push(m);
+  });
+
+  // ── Semáforos geocodificados — color por criticidad ────────────────────────
+  const semColor = (s) => {
+    const crit = (s.criticidad||'').toUpperCase();
+    if (crit==='ALTA'||crit==='CRITICA'||crit==='CRITICO') return '#ef4444';
+    if (crit==='MEDIO'||crit==='MEDIA'||crit==='ALTO') return '#FBBB0D';
+    if (crit==='BAJO'||crit==='BAJA') return '#22c55e';
+    if (crit==='NO CRITICO'||crit==='NO CRÍTICO') return '#22c55e';
+    // fallback por tipo de falla
+    if (s.tipoFalla.includes('TITILANTE')) return '#FBBB0D';
+    if (s.tipoFalla.includes('FTC')) return '#64748b';
+    return '#888';
+  };
+
+  sem.forEach(s => {
+    if (s.lat == null || s.lng == null) return;
+    const color = semColor(s);
+    const nocob = s.coberturaAgentes==='NO' || s.coberturaAgentes==='N';
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:10px;height:10px;background:${color};border:1.5px solid rgba(255,255,255,0.4);border-radius:2px;box-shadow:0 0 5px ${color}66;${nocob?'outline:2px solid #ef444488;':''}"></div>`,
+      iconSize: [10,10], iconAnchor: [5,5],
+    });
+    const m = L.marker([s.lat, s.lng], { icon });
+
+    m.bindPopup(`
+      <div style="min-width:195px;font-family:Inter,sans-serif;font-size:12px">
+        <div style="color:${color};font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px">
+          🚦 ${opEsc(s.tipoFalla||'FALLA SEMÁFORO')}
+        </div>
+        <div style="font-size:15px;font-weight:700;text-transform:uppercase;margin-bottom:2px;color:#fff">${opEsc(s.calle1)}</div>
+        ${s.calle2?`<div style="color:#888;font-size:10px;margin-bottom:5px">y ${opEsc(s.calle2)}</div>`:''}
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px">
+          ${s.criticidad?`<span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;background:${color}20;color:${color}">${opEsc(s.criticidad)}</span>`:''}
+          <span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:600;${nocob?'background:rgba(239,68,68,0.12);color:#ef4444':'background:rgba(34,197,94,0.1);color:#22c55e'}">${nocob?'SIN COBERTURA':'CON COBERTURA'}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10px;color:#666;border-top:1px solid rgba(255,255,255,0.06);padding-top:5px">
+          ${s.estado?`<span>📡 ${opEsc(s.estado)}</span>`:''}
+          ${s.baseAsignada?`<span>📍 ${opEsc(s.baseAsignada)}</span>`:''}
+          ${s.zonaSL?`<span>🗺 Zona ${opEsc(s.zonaSL)}</span>`:''}
+          ${s.comuna?`<span>🏘 Comuna ${opEsc(s.comuna)}</span>`:''}
+          ${s.ups&&s.ups!=='NO'&&s.ups!=='N'?`<span style="color:#FBBB0D">⚡ UPS activo</span>`:''}
+        </div>
+      </div>`, { maxWidth: 230 });
+
+    m.addTo(anMap);
+    anMarkers.push(m);
+  });
+
+  // ── Congestiones — triángulos naranja (solo en filtro congestión o todos) ──
+  if (filtroActivo === 'congestion' || filtroActivo === 'todos') {
+    allCongestiones.filter(s=>s.lat!=null&&s.lng!=null).forEach(s=>{
+      const icon = L.divIcon({
+        className:'',
+        html:`<div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:13px solid rgba(249,115,22,0.85);filter:drop-shadow(0 0 4px rgba(249,115,22,0.6))"></div>`,
+        iconSize:[14,13], iconAnchor:[7,13],
+      });
+      const m = L.marker([s.lat,s.lng],{icon});
+      m.bindPopup(`
+        <div style="min-width:180px;font-family:Inter,sans-serif;font-size:12px">
+          <div style="color:#f97316;font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px">🚗 CONGESTIÓN VEHICULAR</div>
+          <div style="font-size:14px;font-weight:700;text-transform:uppercase;color:#fff;margin-bottom:2px">${opEsc(s.calle1)}</div>
+          ${s.calle2&&s.calle2!=='-'?`<div style="color:#888;font-size:10px;margin-bottom:5px">y ${opEsc(s.calle2)}</div>`:''}
+          ${s.descripcion?`<div style="color:#777;font-size:10px;margin-bottom:4px;line-height:1.4">${opEsc(s.descripcion.slice(0,80))}</div>`:''}
+          ${s.hora?`<div style="color:#555;font-size:9px">${s.hora.slice(0,5)}</div>`:''}
+        </div>`, {maxWidth:220});
+      m.addTo(anMap);
+      anMarkers.push(m);
+    });
+  }
+  const CRIT_ORD = {'ALTA':0,'CRITICA':0,'MEDIA':1,'BAJA':2};
+  const topSuc = [...suc]
+    .sort((a,b) => {
+      const oa = CRIT_ORD[(a.criticidad||'').toUpperCase()] ?? 3;
+      const ob = CRIT_ORD[(b.criticidad||'').toUpperCase()] ?? 3;
+      return oa !== ob ? oa - ob : (b.hora||'').localeCompare(a.hora||'');
+    })
+    .slice(0, 5);
+
+  const topSucEl = document.getElementById('hud-top-suc');
+  if (topSucEl) {
+    topSucEl.innerHTML = topSuc.length
+      ? topSuc.map(s => {
+          const color = critColor(s.criticidad);
+          const calle = s.calle1.length > 18 ? s.calle1.slice(0,17)+'…' : s.calle1;
+          const sub   = (s.subtipo||s.tipoOp||'').slice(0,14);
+          const el    = calcElapsedMinutes(s.hora);
+          return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+            <span style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;${s.criticidad==='ALTA'?'box-shadow:0 0 5px '+color:''}"></span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:10px;font-weight:600;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${opEsc(calle)}</div>
+              ${sub?`<div style="font-size:9px;color:var(--text3);margin-top:1px">${opEsc(sub)}</div>`:''}
+            </div>
+            ${el?`<span style="font-family:var(--mono);font-size:9px;color:${color};flex-shrink:0">${el}</span>`:''}
+          </div>`;
+        }).join('')
+      : '<div style="font-size:10px;color:var(--text3);padding:4px 0">Sin sucesos activos</div>';
+  }
+
+  // ── HUD top-right: Emergencias + tenor ────────────────────────────────────
+  const set = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  const emerg = suc.filter(s => s.emergencia==='SI' || s.emergencia==='S').length;
+  set('hud-emerg', emerg || '0');
+
+  const tenorCounts = {};
+  suc.forEach(s => { if(s.tenor) tenorCounts[s.tenor]=(tenorCounts[s.tenor]||0)+1; });
+  const tenorEl = document.getElementById('hud-tenor');
+  if (tenorEl) {
+    const sorted = Object.entries(tenorCounts).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    tenorEl.innerHTML = sorted.length
+      ? sorted.map(([k,v]) => `
+          <div class="hud-stat-row" style="margin-bottom:2px">
+            <span class="hud-stat-label" style="font-size:9px">${k.length>10?k.slice(0,9)+'…':k}</span>
+            <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text2)">${v}</span>
+          </div>`).join('')
+      : '<span style="font-size:9px;color:var(--text3)">Sin datos</span>';
+  }
+
+  // ── HUD bottom-left: Semáforos más tiempo activos ─────────────────────────
+  const semOld = sem
+    .filter(s => s.calle1)
+    .sort((a,b) => (a.inicioSuceso||'').localeCompare(b.inicioSuceso||''))
+    .slice(0,4);
+  const semOldEl = document.getElementById('hud-sem-old');
+  if (semOldEl) {
+    semOldEl.innerHTML = semOld.length
+      ? semOld.map(s => {
+          const color = s.tipoFalla.includes('TITILANTE') ? '#FBBB0D' : s.tipoFalla.includes('FTC') ? '#64748b' : '#555';
+          const c1 = s.calle1.length > 16 ? s.calle1.slice(0,15)+'…' : s.calle1;
+          return `<div class="hud-stat-row" style="margin-bottom:3px">
+            <div style="display:flex;align-items:center;gap:5px;min-width:0">
+              <span style="width:5px;height:5px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span>
+              <span class="hud-stat-label" style="font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c1}</span>
+            </div>
+            <span style="font-size:9px;font-weight:600;color:${color};flex-shrink:0;margin-left:6px">${s.tipoFalla||'FALLA'}</span>
+          </div>`;
+        }).join('')
+      : '<span style="font-size:9px;color:var(--text3)">Sin semáforos</span>';
+  }
+
+  // ── HUD bottom-right: P vs NP + UPS ──────────────────────────────────────
+  let p=0, np=0;
+  suc.forEach(s => {
+    const v = norm(s.pnp||'');
+    if(v==='P'||v.includes('PROG')) p++;
+    else if(v==='NP'||v.includes('NO P')) np++;
+  });
+  const total = p + np || 1;
+  set('hud-p',  p);
+  set('hud-np', np);
+  const pBar  = document.getElementById('hud-p-bar');
+  const npBar = document.getElementById('hud-np-bar');
+  if(pBar)  pBar.style.width  = Math.round(p/total*100)+'%';
+  if(npBar) npBar.style.width = Math.round(np/total*100)+'%';
+
+  const ups = sem.filter(s => s.ups && s.ups !== '' && s.ups !== 'NO' && s.ups !== 'N').length;
+  set('hud-ups', ups);
+}
+
+function extraerComuna(str) {
+  const m=(str||'').match(/\b(\d{1,2})\b/);
+  if(m){const n=parseInt(m[1]);if(n>=1&&n<=15)return String(n);}
+  return null;
+}
+
+// ════════════════════════════════════════════
+//  TURNO — texto enriquecido
+// ════════════════════════════════════════════
+
+// ════════════════════════════════════════════
+//  VISTA OPERATIVA
+// ════════════════════════════════════════════
+const CRIT_C = {ALTA:'#ef4444',CRITICA:'#ef4444',MEDIA:'#FBBB0D',BAJA:'#22c55e'};
+const CRIT_O = {ALTA:0,CRITICA:0,MEDIA:1,BAJA:2};
+function critColor(c) { return CRIT_C[(c||'').toUpperCase()]||'#4a4a55'; }
+
+function initOpMap() {
+  if (opMap) return;
+  const el = document.getElementById('op-map'); if(!el) return;
+  opMap = L.map('op-map',{
+    center:[-34.6037,-58.4116], zoom:12,
+    minZoom:10, maxZoom:16,
+    zoomControl:false, scrollWheelZoom:true,
+    doubleClickZoom:true, touchZoom:true,
+    keyboard:false, boxZoom:false,
+  });
+  applyBaseTile(opMap);
+}
+
+function updateOp() {
+  if(!opMap) initOpMap();
+
+  // allSucesos ya viene filtrado por fecha y activos desde cargarDatos
+  // Solo ordenar por criticidad
+  opActivos = [...allSucesos].sort((a,b)=>{
+    const oa=CRIT_O[norm(a.criticidad)]??3, ob=CRIT_O[norm(b.criticidad)]??3;
+    return oa!==ob?oa-ob:(b.hora||'').localeCompare(a.hora||'');
+  });
+
+  opSelIdx=Math.min(opSelIdx,Math.max(0,opActivos.length-1));
+  updateOpStats(); updateOpSub(); renderOpList(); renderOpTicker(); updateOpMap();
+  opGeocodePending();
+  if (opCongActive) renderOpCongMarkers(); // refrescar triángulos si está activo
+}
+
+function updateOpStats() {
+  const alta=opActivos.filter(s=>['ALTA','CRITICA'].includes((s.criticidad||'').toUpperCase())).length;
+  const scob=allSemaforos.filter(s=>s.coberturaAgentes==='NO'||s.coberturaAgentes==='N').length;
+  const apad=allSemaforos.filter(s=>s.tipoFalla.includes('APAGADO')).length;
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('ops-suc',opActivos.length); set('ops-alta',alta);
+  set('ops-sem',allSemaforos.length); set('ops-sc',scob); set('ops-ap',apad);
+}
+
+function updateOpSub() {
+  const el=document.getElementById('op-count'); if(el) el.textContent=opActivos.length;
+  const alta=opActivos.filter(s=>['ALTA','CRITICA'].includes((s.criticidad||'').toUpperCase())).length;
+  const media=opActivos.filter(s=>(s.criticidad||'').toUpperCase()==='MEDIA').length;
+  const baja=opActivos.filter(s=>(s.criticidad||'').toUpperCase()==='BAJA').length;
+  const cr=document.getElementById('op-crits'); if(!cr) return;
+  cr.innerHTML=[{l:'ALTA',n:alta,c:'#ef4444'},{l:'MEDIA',n:media,c:'#FBBB0D'},{l:'BAJA',n:baja,c:'#22c55e'}]
+    .map(x=>`<div class="op-crit-item">
+      <span class="op-crit-dot" style="background:${x.c}${x.l==='ALTA'?';box-shadow:0 0 5px #ef4444':''}"></span>
+      <span class="op-crit-label" style="color:${x.c}">${x.l}</span>
+      <span class="op-crit-n">${x.n}</span>
+    </div>`).join('');
+}
+
+function opEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function getIcon(s) {
+  const t=(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if(t.includes('siniestro')) return '💥'; if(t.includes('bombero')) return '🚒';
+  if(t.includes('inundac')) return '🌊'; if(t.includes('derrumbe')) return '🏚';
+  if(t.includes('policial')) return '🚔'; if(t.includes('manifest')) return '📢';
+  if(t.includes('poda')||t.includes('arbol')) return '🌳';
+  if(t.includes('obra')||t.includes('emui')) return '🏗';
+  if(t.includes('obstruc')) return '⛔'; if(t.includes('grua')) return '🚛';
+  if(t.includes('congestion')) return '🚦';
+  if(t.includes('aysa')||t.includes('metrogas')||t.includes('edesur')) return '🔧';
+  if(t.includes('evento')||t.includes('festival')) return '🎭';
+  return '⚠️';
+}
+
+function calcElapsed(hora) {
+  if(!hora) return '';
+  const m=hora.split(':'); const h=+m[0], mn=+m[1];
+  if(isNaN(h)||isNaN(mn)) return '';
+  const now=new Date();
+  const ar=new Date(now.getTime()-3*60*60*1000);
+  const d=ar.toISOString().slice(0,10);
+  const start=new Date(`${d}T${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}:00-03:00`);
+  const diff=Math.floor((now-start)/60000);
+  if(diff<0) return '';
+  return diff<60?`${diff}m`:`${Math.floor(diff/60)}h${diff%60}m`;
+}
+
+function renderOpList() {
+  const scroll=document.getElementById('op-list-scroll'); if(!scroll) return;
+  if(!opActivos.length&&!allSemaforos.length) {
+    scroll.innerHTML='<div class="op-empty"><span>Sin incidentes activos</span></div>'; return;
+  }
+  let html='';
+  // Sucesos
+  if(opActivos.length) {
+    const groups=new Map();
+    opActivos.forEach(s=>{
+      const k=s.subtipo&&s.subtipo.trim()?s.subtipo:(s.tipoOp||'Sin tipo');
+      if(!groups.has(k)) groups.set(k,[]);
+      groups.get(k).push(s);
+    });
+    const sorted=[...groups.entries()].sort(([,a],[,b])=>{
+      const ma=Math.min(...a.map(s=>CRIT_O[norm(s.criticidad)]??3));
+      const mb=Math.min(...b.map(s=>CRIT_O[norm(s.criticidad)]??3));
+      return ma-mb;
+    });
+    for(const [sub,items] of sorted) {
+      html+=`<div style="margin-bottom:10px">
+        <div class="op-group-title">
+          <span class="op-group-icon">${getIcon(sub)}</span>
+          <span class="op-group-name">${opEsc(sub)}</span>
+          <span class="op-group-cnt">${items.length}</span>
+        </div>`;
+      for(const item of items) {
+        const isSel=item.id===(opActivos[opSelIdx]?.id);
+        const crit=(item.criticidad||'').toUpperCase();
+        const acc=critColor(crit);
+        const el=calcElapsed(item.hora);
+        html+=`<div class="op-card${isSel?' sel':''}"
+          style="border-color:${isSel?acc+'66':'var(--border)'}"
+          onclick="opSelect('${opEsc(item.id)}')">
+          <div class="op-card-accent" style="background:${acc};opacity:${isSel?1:0.5}"></div>
+          <div class="op-card-inner">
+            <div class="op-card-row1">
+              <span class="op-card-sub">${opEsc(item.subtipo||item.tipoOp||'')}</span>
+              <div class="op-card-badges">
+                ${el?`<span class="op-card-elapsed" style="${isSel?`color:${acc};border-color:${acc}44`:''}">${el}</span>`:''}
+                ${item.hora?`<span class="op-card-hora">${item.hora.slice(0,5)}</span>`:''}
+                ${crit?`<span class="op-card-crit" style="color:${acc}">${item.criticidad}</span>`:''}
+              </div>
+            </div>
+            <div class="op-card-street">${opEsc(item.calle1||'SIN DATO')}</div>
+            ${item.calle2&&item.calle2!=='-'?`<div class="op-card-cross">y ${opEsc(item.calle2)}</div>`:''}
+            ${item.descripcion?`<div class="op-card-desc">${opEsc(item.descripcion.slice(0,75))}${item.descripcion.length>75?'…':''}</div>`:''}
+          </div>
+          <div class="op-card-bar" style="background:${acc};height:${isSel?2:1}px;opacity:${isSel?0.6:0.2}"></div>
+        </div>`;
+      }
+      html+='</div>';
+    }
+  }
+  // Semáforos
+  if(allSemaforos.length) {
+    html+=`<div style="margin-bottom:10px">
+      <div class="op-group-title">
+        <span class="op-group-icon">🚦</span>
+        <span class="op-group-name">Semáforos con Falla</span>
+        <span class="op-group-cnt">${allSemaforos.length}</span>
+      </div>`;
+    const tipoC={'APAGADO':'#4a4a55','APAGADO POR FTC':'#64748b','TITILANTE':'#FBBB0D'};
+    allSemaforos.slice(0,20).forEach(s=>{
+      const acc=tipoC[s.tipoFalla]||'#4a4a55';
+      const cc=critColor(s.criticidad);
+      const nocob=s.coberturaAgentes==='NO'||s.coberturaAgentes==='N';
+      html+=`<div class="op-sem-item">
+        <div class="op-sem-accent" style="background:${acc}"></div>
+        <div class="op-sem-body">
+          <div class="op-sem-tipo" style="color:${acc}">${opEsc(s.tipoFalla||'FALLA')}</div>
+          <div class="op-sem-street">${opEsc(s.calle1)}</div>
+          ${s.calle2?`<div class="op-sem-cross">y ${opEsc(s.calle2)}</div>`:''}
+        </div>
+        ${s.criticidad?`<span style="font-size:9px;font-weight:700;color:${cc}">${opEsc(s.criticidad)}</span>`:''}
+        ${semTimeBadge(calcSemMinutes(s.inicioSuceso))}
+        <span class="op-sem-cob" style="${nocob?'color:#ef4444;border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.08)':'color:#22c55e;border-color:rgba(34,197,94,0.25);background:rgba(34,197,94,0.07)'}">${nocob?'SIN COB.':'CON COB.'}</span>
+      </div>`;
+    });
+    if(allSemaforos.length>20) html+=`<div style="font-size:10px;color:var(--text3);text-align:center;padding:5px">+${allSemaforos.length-20} más</div>`;
+    html+='</div>';
+  }
+
+  // ── Congestiones (solo en filtro congestión) ──
+  if (filtroActivo === 'congestion' && allCongestiones.length) {
+    html+=`<div style="margin-bottom:10px">
+      <div class="op-group-title">
+        <span class="op-group-icon">🚗</span>
+        <span class="op-group-name">Congestión Vehicular</span>
+        <span class="op-group-cnt">${allCongestiones.length}</span>
+      </div>`;
+    allCongestiones.forEach(s=>{
+      const el=calcElapsed(s.hora);
+      html+=`<div style="background:rgba(249,115,22,0.05);border:1px solid rgba(249,115,22,0.2);border-left:3px solid rgba(249,115,22,0.7);border-radius:7px;padding:7px 11px 7px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${opEsc(s.calle1)}</div>
+          ${s.calle2&&s.calle2!=='-'?`<div style="font-size:10px;color:var(--text3)">y ${opEsc(s.calle2)}</div>`:''}
+          ${s.descripcion?`<div style="font-size:9px;color:var(--text3);margin-top:2px">${opEsc(s.descripcion.slice(0,60))}${s.descripcion.length>60?'…':''}</div>`:''}
+        </div>
+        ${el?`<span style="font-family:var(--mono);font-size:9px;color:var(--amber);flex-shrink:0">${el}</span>`:''}
+      </div>`;
+    });
+    html+='</div>';
+  }
+  scroll.innerHTML=html;
+  const sel=scroll.querySelector('.op-card.sel');
+  if(sel) sel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function opSelect(id) {
+  const idx = opActivos.findIndex(s => s.id === id);
+  if (idx < 0) return;
+  opSelIdx = idx;
+  // Pausar el ciclo automático cuando el usuario selecciona manualmente
+  clearInterval(opCycleTimer);
+  opCycleTimer = null;
+  renderOpList();
+  updateOpMapSel();
+  // Reanudar el ciclo después de 30 segundos de inactividad
+  clearTimeout(opCycleTimer._resume);
+  const resumeTimer = setTimeout(() => {
+    if (opActivos.length > 1) {
+      opCycleTimer = setInterval(() => {
+        opSelIdx = (opSelIdx + 1) % opActivos.length;
+        renderOpList(); updateOpMapSel();
+      }, CYCLE_MS);
+    }
+  }, 30000);
+  opCycleTimer._resume = resumeTimer;
+}
+
+function renderOpTicker() {
+  const all=[...opActivos,...allSemaforos.slice(0,8)];
+  if(!all.length) return;
+  const items=[...all,...all];
+  const html=items.map(s=>{
+    const c=critColor(s.criticidad);
+    const lbl=s.calle1+(s.calle2&&s.calle2!=='-'?` · ${s.calle2}`:'');
+    const sub=s.subtipo||s.tipoFalla||s.tipoOp||'';
+    return `<span class="op-ticker-item">
+      <span style="width:5px;height:5px;border-radius:50%;background:${c};flex-shrink:0;display:inline-block"></span>
+      <span style="color:#888;text-transform:uppercase;letter-spacing:0.3px">${opEsc(lbl)}</span>
+      ${sub?`<span style="color:var(--text3)">(${opEsc(sub)})</span>`:''}
+    </span>`;
+  }).join('');
+  const el=document.getElementById('op-ticker-track'); if(el) el.innerHTML=html;
+}
+
+// ── MAPA ──────────────────────────────────────────────────────────────────
+function mkMarker(item,isSel,isSem) {
+  const crit=(item.criticidad||'').toUpperCase();
+  const fill=isSem?'#FBBB0D':critColor(crit);
+  const sz=isSel?34:24, half=sz/2;
+  const glow=isSel?`0 0 0 3px ${fill}44,0 0 14px ${fill}55`:`0 0 6px ${fill}44`;
+  const emoji=isSem?'🚦':getIcon(item.subtipo||item.tipoOp||'');
+  const pulse=isSel?`<div style="position:absolute;inset:-6px;border-radius:50%;border:2px solid ${fill};opacity:0.35;animation:sup-rpl 1.8s ease-out infinite"></div>`:'';
+  return L.divIcon({
+    className:'', iconSize:[sz,sz], iconAnchor:[half,half],
+    popupAnchor:[0,-half-4], tooltipAnchor:[half+4,0],
+    html:`<style>@keyframes sup-rpl{0%{transform:scale(1);opacity:0.4}100%{transform:scale(1.9);opacity:0}}</style>
+      <div style="position:relative;width:${sz}px;height:${sz}px">
+        ${pulse}
+        <div style="position:absolute;inset:0;border-radius:50%;background:${fill};box-shadow:${glow};border:${isSel?'2.5px':'2px'} solid rgba(255,255,255,${isSel?0.35:0.12});display:flex;align-items:center;justify-content:center;font-size:${isSel?14:11}px">${emoji}</div>
+      </div>`,
+  });
+}
+
+function updateOpMap() {
+  if(!opMap) return;
+  clearInterval(opCycleTimer);
+  const selId=opActivos[opSelIdx]?.id;
+  const withC=opActivos.filter(s=>s.lat!=null);
+  const semC=allSemaforos.filter(s=>s.lat!=null);
+  const el=document.getElementById('op-map-n'); if(el) el.textContent=withC.length+semC.length;
+
+  const activeK=new Set([...withC.map(s=>'s_'+s.id),...semC.map(s=>'sm_'+s.id)]);
+  Object.keys(opMarkers).forEach(k=>{if(!activeK.has(k)){opMap.removeLayer(opMarkers[k]);delete opMarkers[k];}});
+
+  withC.forEach(s=>{
+    const isSel=s.id===selId, k='s_'+s.id;
+    const lbl=s.calle1.length>18?s.calle1.slice(0,16)+'…':s.calle1;
+    if(opMarkers[k]){opMarkers[k].setIcon(mkMarker(s,isSel,false));opMarkers[k].setZIndexOffset(isSel?1000:0);}
+    else {
+      const m=L.marker([s.lat,s.lng],{icon:mkMarker(s,isSel,false),zIndexOffset:isSel?1000:0});
+      m.bindTooltip(`<span style="color:${critColor(s.criticidad)};margin-right:3px">■</span>${opEsc(lbl)}`,{permanent:true,direction:'right',offset:[isSel?17:12,0],className:'sup-tooltip'});
+      m.bindPopup(`<div style="min-width:170px;font-size:12px;font-family:Inter,sans-serif">
+        <div style="color:#FBBB0D;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">${opEsc(s.tipoOp||'')}${s.subtipo?' · '+opEsc(s.subtipo):''}</div>
+        <div style="font-weight:700;font-size:14px;text-transform:uppercase;margin-bottom:2px">${opEsc(s.calle1)}</div>
+        ${s.calle2&&s.calle2!=='-'?`<div style="color:#888;font-size:10px;margin-bottom:4px">y ${opEsc(s.calle2)}</div>`:''}
+        ${s.descripcion?`<div style="color:#777;font-size:10px;margin-bottom:5px;line-height:1.4">${opEsc(s.descripcion.slice(0,80))}</div>`:''}
+        <div style="display:flex;gap:5px;align-items:center">
+          ${s.criticidad?`<span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;background:${critColor(s.criticidad)}18;color:${critColor(s.criticidad)}">${opEsc(s.criticidad)}</span>`:''}
+          ${s.hora?`<span style="color:#555;font-size:9px;margin-left:auto">${s.hora.slice(0,5)}</span>`:''}
+        </div>
+      </div>`);
+      m.addTo(opMap); opMarkers[k]=m;
+    }
+  });
+
+  semC.forEach(s=>{
+    const k='sm_'+s.id;
+    if(!opMarkers[k]) {
+      const m=L.marker([s.lat,s.lng],{icon:mkMarker(s,false,true),zIndexOffset:10});
+      m.bindTooltip(`🚦 ${opEsc(s.calle1.slice(0,18))}`,{permanent:true,direction:'right',offset:[12,0],className:'sup-tooltip'});
+      m.addTo(opMap); opMarkers[k]=m;
+    }
+  });
+
+  const sel=opActivos[opSelIdx];
+  if(sel?.lat!=null) { const z=Math.max(opMap.getZoom()||12,12); opMap.setView([sel.lat,sel.lng],z,{animate:true,duration:0.5}); }
+
+  if(opActivos.length>1) {
+    opCycleTimer=setInterval(()=>{
+      opSelIdx=(opSelIdx+1)%opActivos.length;
+      renderOpList(); updateOpMapSel();
+    },CYCLE_MS);
+  }
+}
+
+function updateOpMapSel() {
+  if(!opMap) return;
+  const selId=opActivos[opSelIdx]?.id;
+  Object.entries(opMarkers).forEach(([k,m])=>{
+    if(!k.startsWith('s_')) return;
+    const id=k.slice(2), s=opActivos.find(x=>x.id===id); if(!s) return;
+    const isSel=id===selId;
+    m.setIcon(mkMarker(s,isSel,false)); m.setZIndexOffset(isSel?1000:0);
+  });
+  const sel=opActivos[opSelIdx];
+  if(sel?.lat!=null) { const z=Math.max(opMap.getZoom()||12,12); opMap.setView([sel.lat,sel.lng],z,{animate:true,duration:0.5}); }
+}
+
+// ── GEOCODING ───────────────────────────────────────────────────────────────
+async function geocode(c1,c2) {
+  const k=`${c1}|${c2}`; if(geoCache[k]!==undefined) return geoCache[k];
+  const clean=s=>(s||'').trim().replace(/\bAV\.\s*/gi,'').replace(/[.,]+/g,'').replace(/\s+/g,' ').trim();
+  const a=clean(c1), b=c2&&c2.trim()&&c2.trim()!=='-'?clean(c2):null;
+  const dir=b?`${a} y ${b}`:a;
+  const tryU=async url=>{
+    try{const r=await fetch(url);if(!r.ok)return null;const d=await r.json();
+      const res=d?.direccionesNormalizadas?.[0];
+      if(res?.coordenadas){const{x,y}=res.coordenadas;
+        if(x&&y){const c={lat:parseFloat(y),lng:parseFloat(x)};
+          if(c.lat>-34.706&&c.lat<-34.527&&c.lng>-58.531&&c.lng<-58.335)return c;}}
+    }catch(e){}return null;
+  };
+  let coords=await tryU(`https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=${encodeURIComponent(dir)}&geocodificar=true`);
+  if(!coords&&b) coords=await tryU(`https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=${encodeURIComponent(a)}&geocodificar=true`);
+  geoCache[k]=coords||null; return coords||null;
+}
+
+async function opGeocodePending() {
+  if(isGeocoding) return; isGeocoding=true;
+  // Apply cache first
+  [...opActivos,...allSemaforos,...allCongestiones].forEach(s=>{
+    const k=`${s.calle1}|${s.calle2}`;
+    if(geoCache[k]&&s.lat==null){s.lat=geoCache[k].lat;s.lng=geoCache[k].lng;}
+  });
+  updateOpMap();
+  const pending=[...opActivos,...allSemaforos,...allCongestiones].filter(s=>s.lat==null&&geoCache[`${s.calle1}|${s.calle2}`]===undefined);
+  for(let i=0;i<pending.length;i+=5) {
+    await Promise.all(pending.slice(i,i+5).map(async s=>{
+      const c=await geocode(s.calle1,s.calle2);
+      if(c){s.lat=c.lat;s.lng=c.lng;}
+    }));
+    saveGeo(); updateOpMap();
+    await new Promise(r=>setTimeout(r,350));
+  }
+  isGeocoding=false;
+}
+
+// ════════════════════════════════════════════
+//  MODAL TURNO
+// ════════════════════════════════════════════
+function abrirTurno() {
+  const suc=filtrados(), sem=filtroActivo==='p' || filtroActivo==='congestion' ? [] : allSemaforos;
+  const alta=suc.filter(s=>s.criticidad==='ALTA').length;
+  const media=suc.filter(s=>s.criticidad==='MEDIA').length;
+  const baja=suc.filter(s=>s.criticidad==='BAJA').length;
+  const np=suc.filter(s=>{const v=norm(s.pnp||'');return v==='NP'||v==='N'||v.startsWith('NO P');}).length;
+  const emerg=suc.filter(s=>s.emergencia==='SI'||s.emergencia==='S').length;
+  const semAp=sem.filter(s=>s.tipoFalla.includes('APAGADO')).length;
+  const semTit=sem.filter(s=>s.tipoFalla.includes('TITILANTE')).length;
+  const semSC=sem.filter(s=>s.coberturaAgentes==='NO'||s.coberturaAgentes==='N').length;
+  const bases={};
+  suc.forEach(s=>{if(s.baseAsignada)bases[s.baseAsignada]=(bases[s.baseAsignada]||0)+1;});
+  sem.forEach(s=>{if(s.baseAsignada)bases[s.baseAsignada]=(bases[s.baseAsignada]||0)+1;});
+  const bSorted=Object.entries(bases).sort((a,b)=>b[1]-a[1]);
+
+  const rows=[
+    ['Sucesos activos',suc.length],['Alta criticidad',alta],['Media criticidad',media],
+    ['Baja criticidad',baja],['No programados',np],['Con emergencia',emerg],
+    ['Semáforos con falla',sem.length],['— Apagados',semAp],['— Titilantes',semTit],
+    ['— Sin cobertura',semSC],
+  ];
+  const tb=document.getElementById('turno-rows');
+  if(tb) tb.innerHTML=rows.map(([l,v])=>`<tr><td>${l}</td><td>${v}</td></tr>`).join('');
+  const be=document.getElementById('turno-bases');
+  if(be) be.innerHTML=bSorted.slice(0,5).map(([k,v],i)=>`
+    <div class="turno-base-row">
+      <span style="color:${i===0?'var(--gold)':'var(--text3)'}">${i+1}. ${k}</span>
+      <span style="font-family:var(--mono);color:${i===0?'var(--gold)':'var(--text3)'}">${v} eventos</span>
+    </div>`).join('')||'<span style="color:var(--text3)">Sin datos</span>';
+
+  // ── Texto en formato operativo ────────────────────────────────────────────
+  const now=new Date();
+  const hora=now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  const fecha=now.toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+
+  const lines = [];
+  lines.push(`RESUMEN OPERATIVO — ${fecha.toUpperCase()}`);
+  lines.push('');
+  lines.push(`NIVEL OPERATIVO: ${alta>=3?'🔴 ALTA':alta>=1?'🟡 MEDIA-ALTA':'🟢 NORMAL'}`);
+  lines.push('');
+
+  // ── SUCESOS agrupados por tipo ──────────────────────────────────────────
+  if (suc.length) {
+    const grupos = new Map();
+    suc.forEach(s => {
+      const key = s.subtipo || s.tipoOp || 'OPERATIVO';
+      if (!grupos.has(key)) grupos.set(key, []);
+      grupos.get(key).push(s);
+    });
+    const gruposOrdenados = [...grupos.entries()].sort(([,a],[,b]) => {
+      const ma = Math.min(...a.map(s => CRIT_O[norm(s.criticidad)]??3));
+      const mb = Math.min(...b.map(s => CRIT_O[norm(s.criticidad)]??3));
+      return ma - mb;
+    });
+
+    gruposOrdenados.forEach(([tipo, items]) => {
+      const emoji = getIcon(tipo);
+      lines.push(`${emoji} *${tipo.toUpperCase()}*`);
+      lines.push('');
+      items.forEach(s => {
+        // Dirección
+        const dir = s.calle1 + (s.calle2 && s.calle2 !== '-' ? ` y ${s.calle2}` : '');
+        lines.push(`📍 *${dir}*`);
+
+        // Afectación (tenor)
+        if (s.tenor && s.tenor.trim()) lines.push(s.tenor.trim());
+
+        // Involucrados
+        const invol = [];
+        if (s.particular > 0) invol.push(s.particular === 1 ? 'Particular' : `${s.particular} Particulares`);
+        if (s.taxi > 0)       invol.push(s.taxi === 1 ? 'Taxi' : `${s.taxi} Taxis`);
+        if (s.moto > 0)       invol.push(s.moto === 1 ? 'Moto' : `${s.moto} Motos`);
+        if (s.bici > 0)       invol.push(s.bici === 1 ? 'Bici' : `${s.bici} Bicis`);
+        if (s.peaton > 0)     invol.push(s.peaton === 1 ? 'Peatón' : `${s.peaton} Peatones`);
+        if (s.pesados > 0)    invol.push(s.pesados === 1 ? 'Pesado' : `${s.pesados} Pesados`);
+        if (s.colectivo > 0)  invol.push(s.colectivo === 1 ? 'Colectivo' : `${s.colectivo} Colectivos`);
+        if (s.linea1 && s.linea1.trim()) invol.push(`Línea ${s.linea1.trim()}`);
+        if (s.linea2 && s.linea2.trim()) invol.push(`Línea ${s.linea2.trim()}`);
+        if (invol.length) lines.push(`Involucra ${invol.join(', ')}`);
+
+        // Recursos
+        const tieneAgentes = s.enviaAg === 'SI' || s.enviaAg === 'S';
+        const pf = (s.puntoFijo || '').trim();
+        const tienePolicia = pf && !['NO','N/A','N',''].includes(pf.toUpperCase());
+        if (tieneAgentes && tienePolicia)   lines.push(`👮 Agentes y ${pf} en el lugar`);
+        else if (tieneAgentes)              lines.push(`👮 Agentes en el lugar`);
+        else if (tienePolicia)              lines.push(`👮 ${pf} en el lugar`);
+
+        lines.push('');
+      });
+    });
+  } else {
+    lines.push('Sin sucesos activos.');
+    lines.push('');
+  }
+
+  // ── SEMÁFOROS agrupados por tipo y criticidad ───────────────────────────
+  if (sem.length) {
+    lines.push('🚦 *ACTUALIZACION SEMAFOROS*');
+    lines.push('');
+
+    const tiposOrden = ['APAGADO','APAGADO POR FTC','TITILANTE'];
+    const todosLosTipos = [...new Set(sem.map(s => s.tipoFalla||'FALLA'))];
+    const tiposOrdenados = [
+      ...tiposOrden.filter(t => todosLosTipos.includes(t)),
+      ...todosLosTipos.filter(t => !tiposOrden.includes(t)),
+    ];
+
+    const tipoEmoji = { 'APAGADO':'🔴', 'APAGADO POR FTC':'⚫', 'TITILANTE':'🟡' };
+
+    tiposOrdenados.forEach(tipo => {
+      const delTipo = sem.filter(s => (s.tipoFalla||'FALLA') === tipo);
+      if (!delTipo.length) return;
+      const emoji = tipoEmoji[tipo] || '🔶';
+      lines.push(`${emoji} *${tipo}*`);
+      lines.push('');
+      const criticos   = delTipo.filter(s => ['ALTA','CRITICA','CRITICO'].includes((s.criticidad||'').toUpperCase()));
+      const noCriticos = delTipo.filter(s => !['ALTA','CRITICA','CRITICO'].includes((s.criticidad||'').toUpperCase()));
+      if (criticos.length) {
+        lines.push('*Crítico*');
+        criticos.forEach(s => {
+          const dir = s.calle1 + (s.calle2 ? ` y ${s.calle2}` : '');
+          const cob = (s.coberturaAgentes==='SI'||s.coberturaAgentes==='S') ? ' - 👮 *Agentes en el lugar*' : '';
+          lines.push(`• ${dir}${cob}`);
+        });
+        lines.push('');
+      }
+      if (noCriticos.length) {
+        lines.push('*No Crítico*');
+        noCriticos.forEach(s => {
+          const dir = s.calle1 + (s.calle2 ? ` y ${s.calle2}` : '');
+          const cob = (s.coberturaAgentes==='SI'||s.coberturaAgentes==='S') ? ' - 👮 *Agentes en el lugar*' : '';
+          lines.push(`• ${dir}${cob}`);
+        });
+        lines.push('');
+      }
+    });
+  } else {
+    lines.push('🚦 *ACTUALIZACION SEMAFOROS*');
+    lines.push('');
+    lines.push('Sin semáforos con falla activa.');
+    lines.push('');
+  }
+
+  const ta=document.getElementById('turno-textarea'); if(ta) ta.value=lines.join('\n');
+  const cp=document.getElementById('turno-copied'); if(cp) cp.style.opacity='0';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function calcElapsedMinutes(hora) {
+  if(!hora) return '';
+  const parts=hora.split(':'); const h=+parts[0], m=+parts[1];
+  if(isNaN(h)||isNaN(m)) return '';
+  const now=new Date();
+  const ar=new Date(now.getTime()-3*60*60*1000);
+  const d=ar.toISOString().slice(0,10);
+  const start=new Date(`${d}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00-03:00`);
+  const diff=Math.floor((now-start)/60000);
+  if(diff<0||diff>720) return '';
+  return diff<60?`${diff}min`:`${Math.floor(diff/60)}h ${diff%60}min`;
+}
+function cerrarTurno() { document.getElementById('modal-overlay').classList.remove('open'); }
+function copiarTurno() {
+  const ta=document.getElementById('turno-textarea'); if(!ta) return;
+  navigator.clipboard.writeText(ta.value).then(()=>{
+    const cp=document.getElementById('turno-copied');
+    if(cp){cp.style.opacity='1';setTimeout(()=>cp.style.opacity='0',2000);}
+  });
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')cerrarTurno();});
+
+// ════════════════════════════════════════════
+//  CONTADOR ANIMADO KPIs
+// ════════════════════════════════════════════
+function animateCount(el, target, duration=600) {
+  if (!el) return;
+  const start = parseInt(el.textContent) || 0;
+  if (start === target) return;
+  el.classList.remove('kpi-counting');
+  void el.offsetWidth; // reflow
+  el.classList.add('kpi-counting');
+  const startTime = performance.now();
+  const tick = (now) => {
+    const p = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1-p, 3); // cubic ease-out
+    el.textContent = Math.round(start + (target - start) * ease);
+    if (p < 1) requestAnimationFrame(tick);
+    else { el.textContent = target; el.classList.remove('kpi-counting'); }
+  };
+  requestAnimationFrame(tick);
+}
+
+// Wrapper de renderKPIs con animación de contadores
+const _renderKPIsOrig = renderKPIs;
+renderKPIs = function(suc, sem) {
+  _renderKPIsOrig(suc, sem);
+  ['kpi-alta','kpi-suc','kpi-sem','kpi-apa','kpi-bases'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      const val = parseInt(el.textContent);
+      if (!isNaN(val)) { el.textContent = '0'; animateCount(el, val); }
+    }
+  });
+};
+
+// ════════════════════════════════════════════
+//  PULSO EN VIVO
+// ════════════════════════════════════════════
+function triggerLivePulse() {
+  const ring  = document.getElementById('live-ring');
+  const label = document.getElementById('live-label');
+  if (ring) {
+    ring.classList.remove('refreshing');
+    void ring.offsetWidth;
+    ring.classList.add('refreshing');
+  }
+  if (label) {
+    label.style.color = '#fff';
+    setTimeout(() => label.style.color = '', 600);
+  }
+}
+
+// ════════════════════════════════════════════
+//  MODO PRESENTACIÓN
+// ════════════════════════════════════════════
+//  TOMTOM — TILES DE FLUJO + CONGESTIÓN OP
+// ════════════════════════════════════════════
+let ttFlowLayerAn  = null; // capa tiles en mapa analítico
+let ttFlowLayerOp  = null; // capa tiles en mapa operativo
+let opCongActive   = false; // estado botón congestión vista operativa
+let opCongMarkers  = [];    // triángulos de planilla en mapa operativo
+
+// Agrega/quita capa de tiles de flujo TomTom (solo imágenes — sin CORS)
+function addTTTiles(map) {
+  if (!map) return null;
+  const layer = L.tileLayer(
+    `https://api.tomtom.com/traffic/map/4/tile/flow/relative0-dark/{z}/{x}/{y}.png?key=${TT_KEY}`,
+    { opacity: 0.9, maxZoom: 18, zIndex: 450, attribution: '© TomTom' }
+  );
+  layer.on('tileerror', (e) => {
+    console.warn('TomTom tile error:', (e.tile?.src||'').slice(0,100));
+  });
+  try { layer.addTo(map); } catch(e) { console.warn('TomTom addTo:', e); return null; }
+  return layer;
+}
+
+function addTTFlowLayer(map) {
+  if (!map) return;
+  if (map === anMap) {
+    if (ttFlowLayerAn) { try{map.removeLayer(ttFlowLayerAn);}catch(e){} ttFlowLayerAn=null; }
+    ttFlowLayerAn = addTTTiles(map);
+    const leg = document.getElementById('tt-legend');
+    if (leg) leg.classList.add('on');
+  } else if (map === opMap) {
+    if (ttFlowLayerOp) { try{map.removeLayer(ttFlowLayerOp);}catch(e){} ttFlowLayerOp=null; }
+    ttFlowLayerOp = addTTTiles(map);
+  }
+}
+
+function removeTTFlowLayer(map) {
+  if (!map) return;
+  if (map === anMap && ttFlowLayerAn) {
+    try{map.removeLayer(ttFlowLayerAn);}catch(e){} ttFlowLayerAn=null;
+    const leg = document.getElementById('tt-legend');
+    if (leg) leg.classList.remove('on');
+  } else if (map === opMap && ttFlowLayerOp) {
+    try{map.removeLayer(ttFlowLayerOp);}catch(e){} ttFlowLayerOp=null;
+  }
+}
+
+
+// ── Botón Congestión en Vista Operativa ──────────────────────────────────────
+function toggleOpCongestion() {
+  opCongActive = !opCongActive;
+  const btn = document.getElementById('op-cong-btn');
+  if (btn) {
+    btn.style.background    = opCongActive ? 'rgba(249,115,22,0.15)' : 'transparent';
+    btn.style.color         = opCongActive ? 'var(--amber)' : 'var(--text3)';
+    btn.style.borderColor   = opCongActive ? 'rgba(249,115,22,0.7)' : 'rgba(249,115,22,0.35)';
+  }
+  if (opCongActive) {
+    if (opMap) addTTFlowLayer(opMap);
+    renderOpCongMarkers();
+  } else {
+    if (opMap) removeTTFlowLayer(opMap);
+    opCongMarkers.forEach(m => opMap && opMap.removeLayer(m));
+    opCongMarkers = [];
+  }
+}
+
+function renderOpCongMarkers() {
+  opCongMarkers.forEach(m => opMap && opMap.removeLayer(m));
+  opCongMarkers = [];
+  if (!opMap || !opCongActive) return;
+
+  allCongestiones.filter(s => s.lat != null && s.lng != null).forEach(s => {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:15px solid rgba(249,115,22,0.88);filter:drop-shadow(0 0 5px rgba(249,115,22,0.7))"></div>`,
+      iconSize: [16, 15], iconAnchor: [8, 15],
+    });
+    const m = L.marker([s.lat, s.lng], { icon });
+    const dir = s.calle1 + (s.calle2 && s.calle2 !== '-' ? ' y ' + s.calle2 : '');
+    m.bindPopup(`
+      <div style="min-width:170px;font-family:Inter,sans-serif;font-size:12px">
+        <div style="color:#f97316;font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:4px">🚗 CONGESTIÓN</div>
+        <div style="font-weight:700;font-size:13px;text-transform:uppercase;color:#fff;margin-bottom:2px">${opEsc(s.calle1)}</div>
+        ${s.calle2 && s.calle2 !== '-' ? `<div style="color:#888;font-size:10px;margin-bottom:4px">y ${opEsc(s.calle2)}</div>` : ''}
+        ${s.descripcion ? `<div style="color:#777;font-size:10px;margin-bottom:4px;line-height:1.4">${opEsc(s.descripcion.slice(0,80))}</div>` : ''}
+        ${s.hora ? `<div style="color:#555;font-size:9px">${s.hora.slice(0,5)}</div>` : ''}
+      </div>`, { maxWidth: 220 });
+    m.addTo(opMap);
+    opCongMarkers.push(m);
+  });
+
+  // Geocodificar congestiones que todavía no tienen coords
+  const pending = allCongestiones.filter(s => s.lat == null && geoCache[`${s.calle1}|${s.calle2}`] === undefined);
+  if (pending.length) opGeocodePending(); // reutiliza el geocoder existente
+}
+
+// ════════════════════════════════════════════
+//  TEMAS DE INTERFAZ
+// ════════════════════════════════════════════
+const THEME_LABELS = { '':'Oscuro', 'blue':'Azul', 'light':'Claro' };
+
+function toggleThemePanel() {
+  const p = document.getElementById('theme-panel');
+  if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+// Cerrar al click fuera
+document.addEventListener('click', e => {
+  const panel = document.getElementById('theme-panel');
+  const btn   = document.getElementById('btn-theme');
+  if (panel && !panel.contains(e.target) && e.target !== btn && !btn?.contains(e.target))
+    panel.style.display = 'none';
+});
+
+function setTheme(theme, btn) {
+  document.body.classList.remove('theme-blue', 'theme-light');
+  if (theme) document.body.classList.add('theme-' + theme);
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const lbl = document.getElementById('theme-label');
+  if (lbl) lbl.textContent = THEME_LABELS[theme] || 'Oscuro';
+  localStorage.setItem('sup_theme', theme);
+
+  // Cambiar mapa para que combine con el tema
+  const themeToMap = { '': 'dark', 'blue': 'blue', 'light': 'light' };
+  const matchingMap = themeToMap[theme] || 'dark';
+  currentMapStyle = matchingMap;
+  localStorage.setItem('sup_map', matchingMap);
+  // Actualizar botón activo del mapa
+  document.querySelectorAll('.map-btn').forEach(b => b.classList.remove('active'));
+  const mapBtn = document.querySelector(`.map-btn[data-map="${matchingMap}"]`);
+  if (mapBtn) mapBtn.classList.add('active');
+  // Aplicar a todos los mapas
+  [opMap, anMap].filter(Boolean).forEach(map => applyBaseTile(map));
+}
+
+// ════════════════════════════════════════════
+//  ESTILOS DE MAPA
+// ════════════════════════════════════════════
+const MAP_TILES = {
+  dark:      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  blue:      'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
+  light:     'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+};
+const MAP_ATTRIB = {
+  dark:      '© CARTO',
+  blue:      '© CARTO',
+  light:     '© CARTO',
+  satellite: '© Esri',
+};
+let currentMapStyle = 'dark';
+let baseLayers = {}; // {opMap: layer, anMap: layer}
+
+function setMapStyle(style, btn) {
+  currentMapStyle = style;
+  document.querySelectorAll('.map-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  localStorage.setItem('sup_map', style);
+  // Aplicar a todos los mapas activos
+  [opMap, anMap].filter(Boolean).forEach(map => applyBaseTile(map));
+}
+
+function applyBaseTile(map) {
+  if (!map) return;
+  // Remover capa base anterior
+  const prev = baseLayers[map._leaflet_id];
+  if (prev) try { map.removeLayer(prev); } catch(e) {}
+  const url    = MAP_TILES[currentMapStyle] || MAP_TILES.dark;
+  const attrib = MAP_ATTRIB[currentMapStyle] || '© CARTO';
+  const opacity = currentMapStyle === 'satellite' ? 1.0 : parseFloat(getComputedStyle(document.body).getPropertyValue('--map-opacity') || '0.7');
+  const layer = L.tileLayer(url, {
+    subdomains: 'abcd', maxZoom: 18, opacity,
+    attribution: attrib,
+    zIndex: 1,
+  }).addTo(map);
+  baseLayers[map._leaflet_id] = layer;
+  layer.bringToBack();
+}
+
+// ════════════════════════════════════════════
+//  TOMTOM CLICK — info segmento vial
+// ════════════════════════════════════════════
+let ttClickEnabled = false;
+
+
+async function onTTMapClick(e) {
+  if (routeMode) { onRouteModeClick(e); return; }
+  const { lat, lng } = e.latlng;
+  const map = e.target;
+
+  const loadingPopup = L.popup({ maxWidth: 220 })
+    .setLatLng(e.latlng)
+    .setContent(`<div style="font-family:Inter,sans-serif;font-size:11px;color:#888;padding:4px">🔍 Consultando TomTom...</div>`)
+    .openOn(map);
+
+  const delta = 0.0015;
+  const minLon = lng-delta, minLat = lat-delta, maxLon = lng+delta, maxLat = lat+delta;
+
+  const incUrl = `https://api.tomtom.com/traffic/services/5/incidentDetails`
+    + `?key=${TT_KEY}&bbox=${minLon},${minLat},${maxLon},${maxLat}`
+    + `&fields={incidents{type,geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,events{description,code},from,to,delay,roadNumbers,startTime,endTime}}}`
+    + `&language=es-ES&timeValidityFilter=present`;
+  const flowUrl = `https://api.tomtom.com/traffic/services/4/flowSegmentData/relative0/18/json?key=${TT_KEY}&point=${lat},${lng}&unit=KMPH`;
+
+  const [incRes, flowRes] = await Promise.allSettled([
+    fetch(incUrl,{mode:'cors'}).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(flowUrl,{mode:'cors'}).then(r=>r.ok?r.json():null).catch(()=>null),
+  ]);
+
+  const allInc = incRes.status==='fulfilled' ? (incRes.value?.incidents||[]) : [];
+  const flow   = flowRes.status==='fulfilled' ? flowRes.value?.flowSegmentData : null;
+
+  const incidents = allInc.map(inc => {
+    const geo = inc.geometry;
+    if (!geo?.coordinates) return {inc, dist:9999};
+    const coords = geo.type==='Point' ? [geo.coordinates] : geo.coordinates;
+    const minDist = coords.reduce((m,c)=>{ const d=Math.hypot(c[0]-lng,c[1]-lat); return d<m?d:m; },9999);
+    return {inc, dist:minDist};
+  }).sort((a,b)=>a.dist-b.dist).map(x=>x.inc);
+
+  const catEmojis = {0:'⚠️',1:'🚨',2:'🌫️',3:'⚠️',4:'🌧️',5:'🧊',6:'🚧',7:'🏗️',8:'💨',9:'🌊',10:'🔧',11:'🚫',14:'🚫'};
+  const catLabels = {0:'Incidente',1:'Accidente',2:'Niebla',3:'Peligro',4:'Lluvia',5:'Hielo',6:'Obstrucción',7:'Obra vial',8:'Viento',9:'Inundación',10:'Avería',11:'Cierre de vía',14:'Cierre de vía'};
+  const magColors = {0:'#666',1:'#22c55e',2:'#FBBB0D',3:'#f97316',4:'#ef4444'};
+  const magLabels = {0:'Sin impacto',1:'Leve',2:'Moderado',3:'Grave',4:'Vía bloqueada'};
+  const weatherCats = [2,4,5,8,9];
+
+  function renderInc(props, compact=false) {
+    const mag=props.magnitudeOfDelay??0, icon=props.iconCategory||0;
+    const color=magColors[mag]||'#666';
+    const isClos=mag===4||icon===11||icon===14;
+    const dIcon=(isClos&&weatherCats.includes(icon))?11:icon;
+    let h='';
+    if (compact) {
+      return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-top:1px solid rgba(255,255,255,0.05)">
+        <span style="font-size:12px">${catEmojis[dIcon]||'⚠️'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:10px;font-weight:600;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${props.from||'Sin ubicación'}</div>
+          ${props.to&&props.to!==props.from?`<div style="font-size:9px;color:#555">→ ${props.to}</div>`:''}
+        </div>
+        <span style="font-size:9px;font-weight:700;color:${color};flex-shrink:0">${magLabels[mag]||''}</span>
+      </div>`;
+    }
+    h += `<div style="color:${color};font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${catEmojis[dIcon]||'⚠️'} ${catLabels[dIcon]||'Incidente'}</div>`;
+    if (props.from) h += `<div style="font-weight:700;font-size:13px;color:#fff;margin-bottom:${props.to&&props.to!==props.from?'2':'5'}px">${props.from}</div>`;
+    if (props.to&&props.to!==props.from) h += `<div style="color:#666;font-size:10px;margin-bottom:5px">→ ${props.to}</div>`;
+    const desc=props.events?.[0]?.description;
+    if (desc) h += `<div style="color:#888;font-size:10px;margin-bottom:6px;line-height:1.5">${desc}</div>`;
+    h += `<span style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;background:${color}22;color:${color};border:1px solid ${color}44;margin-bottom:6px">${magLabels[mag]||''}</span>`;
+    if (props.delay&&props.delay>60) h += `<div style="color:${color};font-size:11px;margin-bottom:4px">⏱ Demora: <b>${Math.round(props.delay/60)} min</b></div>`;
+    if (props.startTime) { const t=new Date(props.startTime).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); h += `<div style="color:#555;font-size:9px;margin-bottom:3px">📅 Activo desde: ${t}</div>`; }
+    return h;
+  }
+
+  let html = `<div style="min-width:210px;max-width:270px;font-family:Inter,sans-serif;font-size:12px">`;
+  let isClosure = false;
+
+  if (incidents.length > 0) {
+    const props = incidents[0].properties||{};
+    const mag=props.magnitudeOfDelay??0, icon=props.iconCategory||0;
+    isClosure = mag===4||icon===11||icon===14;
+    html += renderInc(props, false);
+
+    if (incidents.length > 1) {
+      const extraId = 'tt-x-' + Date.now();
+      html += `<div style="margin-top:5px">
+        <button onclick="var el=document.getElementById('${extraId}');el.style.display=el.style.display==='none'?'block':'none';this.textContent=el.style.display==='none'?'▶ Ver ${incidents.length-1} más':'▼ Ocultar'"
+          style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:#666;font-size:9px;cursor:pointer;padding:3px 8px;width:100%;text-align:left">
+          ▶ Ver ${incidents.length-1} más
+        </button>
+        <div id="${extraId}" style="display:none">
+          ${incidents.slice(1).map(i=>renderInc(i.properties||{},true)).join('')}
+        </div>
+      </div>`;
+    }
+
+    if (isClosure) {
+      html += `<div style="font-size:8px;color:#333;margin-top:8px;text-align:right">© TomTom</div></div>`;
+      loadingPopup.setContent(html); return;
+    }
+    if (flow) html += `<div style="margin:8px 0 6px;border-top:1px solid rgba(255,255,255,0.06)"></div>`;
+  }
+
+  if (flow && !isClosure) {
+    const speed=flow.currentSpeed, freeFlow=flow.freeFlowSpeed;
+    const ratio=freeFlow>0?speed/freeFlow:1;
+    const level=ratio>0.8?1:ratio>0.6?2:ratio>0.3?3:4;
+    const fc=['#22c55e','#22c55e','#FBBB0D','#f97316','#ef4444'][level];
+    const fl=['Fluido','Fluido','Lento','Congestionado','Detenido'][level];
+    if (!incidents.length) html+=`<div style="color:${fc};font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">🚗 Flujo vial</div>`;
+    html+=`<div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:3px"><span style="color:#777">Velocidad actual</span><span style="font-family:monospace;font-weight:700;color:${fc}">${Math.round(speed)} km/h</span></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:7px"><span style="color:#777">Flujo libre</span><span style="font-family:monospace;color:#555">${Math.round(freeFlow)} km/h</span></div>
+    <div style="height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden"><div style="height:100%;width:${Math.round(ratio*100)}%;background:${fc};border-radius:3px"></div></div>
+    <div style="font-size:9px;color:#555;margin-top:4px">${fl} — ${Math.round(ratio*100)}% del flujo libre</div>`;
+  }
+
+  if (!incidents.length && !flow) html+=`<div style="color:#555;font-size:10px">Sin datos en este punto</div>`;
+  html+=`<div style="font-size:8px;color:#333;margin-top:8px;text-align:right">© TomTom</div></div>`;
+  loadingPopup.setContent(html);
+}
+
+// ════════════════════════════════════════════
+//  ROUTING A → B
+// ════════════════════════════════════════════
+let routeMode=false, routePoints=[], routeLayer=null;
+
+function toggleRouteMode() {
+  routeMode = !routeMode;
+  const btn = document.getElementById('btn-route');
+  if (btn) {
+    btn.style.background  = routeMode ? 'rgba(56,189,248,0.12)' : 'transparent';
+    btn.style.color       = routeMode ? 'var(--blue)' : 'var(--text3)';
+    btn.style.borderColor = routeMode ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.25)';
+    btn.textContent       = routeMode ? '✕ Cancelar' : '📊 Medir traza';
+  }
+  if (!routeMode) clearRoute();
+}
+
+function clearRoute() {
+  // Limpiar segment lines del análisis de traza
+  if (routeLayer?._segLines) {
+    routeLayer._segLines.forEach(l => {
+      try{anMap&&anMap.removeLayer(l);}catch(e){}
+      try{opMap&&opMap.removeLayer(l);}catch(e){}
+    });
+  }
+  // Limpiar markers A/B
+  routePoints.forEach(p => {
+    if(p.marker) { try{anMap&&anMap.removeLayer(p.marker);}catch(e){} try{opMap&&opMap.removeLayer(p.marker);}catch(e){} }
+  });
+  routePoints = [];
+  // Limpiar línea de ruta
+  if (routeLayer) {
+    try{anMap&&anMap.removeLayer(routeLayer);}catch(e){}
+    try{opMap&&opMap.removeLayer(routeLayer);}catch(e){}
+    routeLayer = null;
+  }
+}
+
+function onRouteModeClick(e) {
+  const {lat, lng} = e.latlng;
+  const map = e.target;
+  if (routePoints.length >= 2) { clearRoute(); }
+  const isA = routePoints.length === 0;
+  const color = isA ? '#38bdf8' : '#f97316';
+  const label = isA ? 'A' : 'B';
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="width:26px;height:26px;border-radius:50%;background:${color};border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#000;box-shadow:0 2px 8px rgba(0,0,0,0.6)">${label}</div>`,
+    iconSize:[26,26], iconAnchor:[13,13],
+  });
+  const marker = L.marker([lat,lng],{icon,zIndexOffset:2000}).addTo(map);
+  routePoints.push({lat,lng,marker});
+  if (routePoints.length === 2) calcRoute(map);
+  else {
+    L.popup({closeButton:false,autoClose:true})
+      .setLatLng([lat,lng])
+      .setContent(`<div style="font-family:Inter,sans-serif;font-size:11px;color:#888">✅ Punto A marcado — hacé click en <b style="color:#f97316">punto B</b></div>`)
+      .openOn(map);
+  }
+}
+
+async function calcRoute(map) {
+  const [A, B] = routePoints;
+  const midLat = (A.lat+B.lat)/2, midLng = (A.lng+B.lng)/2;
+
+  L.popup({maxWidth:220}).setLatLng([midLat,midLng])
+    .setContent(`<div style="font-family:Inter,sans-serif;font-size:11px;color:#888;padding:4px">📊 Analizando tráfico en la traza...</div>`)
+    .openOn(map);
+
+  try {
+    // Samplear 5 puntos uniformes entre A y B (incluyendo extremos)
+    const SAMPLES = 5;
+    const samplePoints = Array.from({length: SAMPLES}, (_, i) => ({
+      lat: A.lat + (B.lat - A.lat) * (i / (SAMPLES-1)),
+      lng: A.lng + (B.lng - A.lng) * (i / (SAMPLES-1)),
+    }));
+
+    // Consultar Flow Segment Data en cada punto en paralelo
+    const results = await Promise.all(samplePoints.map(async p => {
+      const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/relative0/18/json`
+        + `?key=${TT_KEY}&point=${p.lat},${p.lng}&unit=KMPH`;
+      try {
+        const r = await fetch(url);
+        if (!r.ok) return null;
+        const d = await r.json();
+        return d.flowSegmentData || null;
+      } catch(e) { return null; }
+    }));
+
+    const valid = results.filter(Boolean);
+    if (!valid.length) throw new Error('Sin datos');
+
+    // Calcular métricas agregadas
+    const avgSpeed    = valid.reduce((s,r) => s + r.currentSpeed, 0) / valid.length;
+    const avgFree     = valid.reduce((s,r) => s + r.freeFlowSpeed, 0) / valid.length;
+    const avgRatio    = valid.reduce((s,r) => s + (r.freeFlowSpeed > 0 ? r.currentSpeed/r.freeFlowSpeed : 1), 0) / valid.length;
+    const minRatio    = Math.min(...valid.map(r => r.freeFlowSpeed > 0 ? r.currentSpeed/r.freeFlowSpeed : 1));
+
+    // Nivel de congestión por segmento
+    const segLevels = valid.map(r => {
+      const ratio = r.freeFlowSpeed > 0 ? r.currentSpeed/r.freeFlowSpeed : 1;
+      return ratio > 0.8 ? 1 : ratio > 0.6 ? 2 : ratio > 0.3 ? 3 : 4;
+    });
+    const worstLevel = Math.max(...segLevels);
+    const distKm = (Math.hypot(B.lat-A.lat, B.lng-A.lng) * 111).toFixed(1);
+
+    // Color de la polilínea basado en peor punto
+    const colors = ['','#22c55e','#FBBB0D','#f97316','#ef4444'];
+    const labels = ['','Fluido','Lento','Congestionado','Detenido'];
+    const lineColor = colors[worstLevel];
+
+    // Dibujar línea entre A y B con color del peor tramo
+    if (routeLayer) { try{map.removeLayer(routeLayer);}catch(e){} }
+    routeLayer = L.polyline([[A.lat,A.lng],[B.lat,B.lng]], {
+      color: lineColor, weight: 6, opacity: 0.9,
+      dashArray: worstLevel >= 3 ? '8,4' : null,
+    }).addTo(map);
+    map.fitBounds(routeLayer.getBounds().pad(0.2));
+
+    // Segmentos coloreados individuales
+    const segLines = samplePoints.slice(0,-1).map((p, i) => {
+      const lv = segLevels[i] || 1;
+      return L.polyline(
+        [[p.lat, p.lng],[samplePoints[i+1].lat, samplePoints[i+1].lng]],
+        {color: colors[lv], weight: 7, opacity: 0.85}
+      ).addTo(map);
+    });
+    if (!routeLayer._segLines) routeLayer._segLines = [];
+    routeLayer._segLines = segLines;
+
+    const dc = colors[worstLevel];
+    const congPct = Math.round((1 - avgRatio) * 100);
+
+    L.popup({maxWidth:270}).setLatLng([midLat, midLng])
+      .setContent(`<div style="min-width:210px;font-family:Inter,sans-serif;font-size:12px">
+        <div style="color:#38bdf8;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">📊 Análisis de traza A → B</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="color:#777">Distancia aprox.</span>
+          <span style="font-family:monospace;font-weight:700;color:#fff">${distKm} km</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="color:#777">Velocidad promedio</span>
+          <span style="font-family:monospace;font-weight:700;color:${dc}">${Math.round(avgSpeed)} km/h</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="color:#777">Velocidad libre</span>
+          <span style="font-family:monospace;color:#555">${Math.round(avgFree)} km/h</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;margin-bottom:4px">
+          <div style="height:100%;width:${Math.round(avgRatio*100)}%;background:${dc};border-radius:3px"></div>
+        </div>
+        <div style="font-size:9px;color:#555;margin-bottom:8px">${Math.round(avgRatio*100)}% del flujo libre — ${congPct}% de congestión</div>
+        <div style="padding:5px 8px;background:${dc}18;border:1px solid ${dc}44;border-radius:4px;font-size:10px;color:${dc};font-weight:600;margin-bottom:6px">
+          ${labels[worstLevel]} — ${valid.length} segmentos analizados
+        </div>
+        ${worstLevel >= 3 ? `<div style="font-size:9px;color:#f97316;margin-bottom:4px">⚠ Hay tramos con congestión severa en la traza</div>` : ''}
+        <button onclick="clearRoute();toggleRouteMode()" style="margin-top:4px;width:100%;padding:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:#888;font-size:9px;cursor:pointer">✕ Limpiar</button>
+      </div>`).openOn(map);
+
+  } catch(err) {
+    console.warn('Flow analysis error:', err);
+    L.popup().setLatLng([midLat, midLng])
+      .setContent(`<div style="color:#ef4444;font-size:11px;font-family:Inter">Error analizando tráfico</div>`)
+      .openOn(map);
+  }
+}
+
+// ════════════════════════════════════════════
+//  DIVISOR DRAGGABLE
+// ════════════════════════════════════════════
+function initResizer(resizerId, leftId, rightId, storageKey) {
+  const resizer = document.getElementById(resizerId);
+  const left    = document.getElementById(leftId);
+  if (!resizer || !left) return;
+  const saved = localStorage.getItem(storageKey);
+  if (saved) { left.style.width = saved; left.style.flex = 'none'; }
+  let startX, startW;
+  const onMove = (e) => {
+    const dx = (e.clientX || e.touches?.[0]?.clientX || 0) - startX;
+    const parent = resizer.parentElement;
+    const newW = Math.min(parent.clientWidth * 0.75, Math.max(220, startW + dx));
+    left.style.width = newW + 'px'; left.style.flex = 'none';
+    localStorage.setItem(storageKey, newW + 'px');
+    [0,100,300].forEach(t=>setTimeout(()=>{ if(opMap) opMap.invalidateSize(); if(anMap) anMap.invalidateSize(); },t));
+  };
+  const onUp = () => {
+    resizer.classList.remove('dragging');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.style.cursor = ''; document.body.style.userSelect = '';
+  };
+  resizer.addEventListener('mousedown', (e) => {
+    e.preventDefault(); startX = e.clientX; startW = left.offsetWidth;
+    resizer.classList.add('dragging');
+    document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+  });
+}
+
+
+// ResizeObserver — invalida mapas cuando cambia el tamaño del contenedor
+if (typeof ResizeObserver !== 'undefined') {
+  const mapResizer = new ResizeObserver(() => {
+    if(opMap) opMap.invalidateSize();
+    if(anMap) anMap.invalidateSize();
+  });
+  const opEl = document.getElementById('op-map-wrap');
+  const anEl = document.getElementById('an-map');
+  if(opEl) mapResizer.observe(opEl);
+  if(anEl) mapResizer.observe(anEl);
+}
+setInterval(cargarDatos, REFRESH_MS);
+window.addEventListener('DOMContentLoaded', ()=>{
+  // Restaurar tema guardado
+  const savedTheme = localStorage.getItem('sup_theme') || '';
+  if (savedTheme) {
+    document.body.classList.add('theme-' + savedTheme);
+    const btn = document.querySelector(`.theme-btn[data-theme="${savedTheme}"]`);
+    if (btn) { document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+    const lbl = document.getElementById('theme-label');
+    if (lbl) lbl.textContent = THEME_LABELS[savedTheme] || 'Oscuro';
+  }
+  // Restaurar estilo de mapa guardado
+  const savedMap = localStorage.getItem('sup_map') || 'dark';
+  currentMapStyle = savedMap;
+  const mapBtn = document.querySelector(`.map-btn[data-map="${savedMap}"]`);
+  if (mapBtn) { document.querySelectorAll('.map-btn').forEach(b=>b.classList.remove('active')); mapBtn.classList.add('active'); }
+
+  setTimeout(()=>{
+    initOpMap();
+    cargarDatos();
+    initResizer('op-resizer', 'op-list-wrap', 'op-map-wrap', 'sup_col_op');
+    initResizer('an-resizer', 'an-list-wrap', 'an-map-side', 'sup_col_an');
+  }, 50);
+});
+</script>
+</body>
+</html>
