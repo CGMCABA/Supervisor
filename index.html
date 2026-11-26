@@ -18,6 +18,7 @@
   style-src 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com;
   font-src https://fonts.gstatic.com;
   img-src data: blob:
+    https://basemaps.cartocdn.com
     https://tile.openstreetmap.org
     https://tiles.stadiamaps.com
     https://tiles-eu.stadiamaps.com
@@ -25,6 +26,7 @@
     https://raw.githubusercontent.com;
   connect-src
     'self'
+    https://basemaps.cartocdn.com
     https://api.tomtom.com
     https://docs.google.com
     https://*.googleusercontent.com
@@ -50,55 +52,101 @@
   crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 // Mapa Leaflet propio del Planner, independiente de mapas de otros módulos.
-let plMap=null,plMapGroup=null;
-// Dark Control 2.5: Planner shares the verified, public, key-free basemap engine.
-// Traffic overlay, cartographic data and application state are independent.
+
+let plMap=null,plMapGroup=null,plMapFrame=null;
+let plMapResizeBound=false,plMapBaseReady=false,plMapBaseRetryAt=0;
+const plMapMarkers=new Map();
+
+function plMapResize(){
+  if(plMapFrame!==null)return;
+  plMapFrame=requestAnimationFrame(()=>{
+    plMapFrame=null;
+    const el=document.getElementById('pl-map');
+    if(plMap && el?.offsetWidth && el.offsetHeight)plMap.invalidateSize({animate:false,debounceMoveend:true});
+  });
+}
+
 function plMapEnsure(){
   const el=document.getElementById('pl-map');
   if(!el)return;
   const note=document.getElementById('pl-map-note');
+  const provider=document.getElementById('pl-map-provider');
   if(typeof L==='undefined'){if(note)note.textContent='⚠ Leaflet no está disponible. Revisá la carga de bibliotecas.';return;}
   try{
     if(!plMap){
-      plMap=L.map(el,{zoomControl:true,attributionControl:true,preferCanvas:false}).setView([-34.6037,-58.3816],12);
-      plMapGroup=L.featureGroup().addTo(plMap);
-      // One engine for all eight maps. Each map stores its own visual preference.
-      applyBaseTile(plMap);
+      plMap=L.map(el,{zoomControl:true,attributionControl:true,preferCanvas:true,trackResize:false}).setView([-34.6037,-58.3816],12);
     }
-    // El contenedor de pestaña se vuelve visible recién después del switch.
-    [50,180,500,1100].forEach(ms=>setTimeout(()=>{
-      if(plMap && el.offsetWidth && el.offsetHeight){
-        plMap.invalidateSize({pan:false});
-      }
-    },ms));
-  }catch(err){console.error('[Planner] Error iniciando mapa:',err);if(note)note.textContent='⚠ No se pudo iniciar el mapa: '+err.message;}
+    if(!plMapGroup)plMapGroup=L.featureGroup().addTo(plMap);
+    if(!plMapResizeBound){
+      if(typeof ResizeObserver==='function')new ResizeObserver(plMapResize).observe(el);
+      else window.addEventListener('resize',plMapResize,{passive:true});
+      plMapResizeBound=true;
+      plMapResize();
+    }
+    if(!plMapBaseReady && Date.now()>=plMapBaseRetryAt){
+      plMapBaseRetryAt=Date.now()+5000;
+      if(provider)provider.textContent='Cargando mapa base…';
+      applyBaseTile(plMap);
+      plMapBaseReady=true;
+    }
+  }catch(err){
+    if(provider)provider.textContent='Mapa base no disponible · Reintento pendiente';
+    if(note)note.textContent='⚠ No se pudo iniciar el mapa.';
+    console.warn('[Planner] No se pudo iniciar el mapa.');
+  }
 }
+
 function plFocus(lat,lng){
   plMapEnsure();
+  plMapResize();
   if(plMap&&Number.isFinite(lat)&&Number.isFinite(lng))plMap.flyTo([lat,lng],16,{duration:.4});
 }
+
 function plMapRender(events){
   plMapEnsure();
   if(!plMapGroup)return;
+  const count=document.getElementById('pl-map-count'), note=document.getElementById('pl-map-note');
   try{
-    plMapGroup.clearLayers();
-    const located=events.filter(e=>e.coords);
-    located.slice(0,400).forEach(e=>{
+    const located=new Map(events.filter(e=>e.coords).map(e=>[e.key,e]));
+    for(const [key,{marker}] of plMapMarkers){
+      if(!located.has(key)){
+        plMapGroup.removeLayer(marker);
+        plMapMarkers.delete(key);
+      }
+    }
+    for(const [key,e] of located){
+      const current=plMapMarkers.get(key);
+      const popup='<b>'+plEsc(e.title)+'</b><div>'+plEsc(e.type)+' · '+plEsc(e.reason)+'</div>';
       const color={critical:'#ef4444',high:'#f97316',medium:'#38bdf8',info:'#a0a0aa'}[e.level];
-      L.circleMarker(e.coords,{radius:6,color,weight:2,fillColor:color,fillOpacity:.7})
-        .bindPopup(`<b>${plEsc(e.title)}</b><div>${plEsc(e.type)} · ${plEsc(e.reason)}</div>`).addTo(plMapGroup);
-    });
-    const n=document.getElementById('pl-map-count');if(n)n.textContent=String(located.length);
-    const note=document.getElementById('pl-map-note');
-    if(note)note.textContent=located.length
-      ?`${located.length} ubicaciones verificadas · ${events.length-located.length} sin coordenadas (geocodificación progresiva).`
-      :events.length
-        ?`⚠ ${events.length} registros para esta fecha, pero ninguno tiene coordenadas verificadas aún. Se intentará geocodificar; revisá las fuentes si persiste.`
-        :'No hay registros para la fecha y los filtros seleccionados; el mapa base sigue disponible.';
-    if(located.length)plMap.fitBounds(plMapGroup.getBounds().pad(.15),{maxZoom:14,animate:false});
-    // No reposicionar el mapa sin puntos: el operador puede explorarlo libremente.
-    setTimeout(()=>plMap?.invalidateSize({pan:false}),150);
-  }catch(err){console.error('[Planner] Error renderizando mapa:',err);const note=document.getElementById('pl-map-note');if(note)note.textContent='⚠ Error de cartografía: '+err.message;}
+      if(!current){
+        const marker=L.circleMarker(e.coords,{radius:6,color,weight:2,fillColor:color,fillOpacity:.7})
+          .bindPopup(popup).addTo(plMapGroup);
+        plMapMarkers.set(key,{marker,coords:e.coords,popup,color});
+        continue;
+      }
+      if(current.coords[0]!==e.coords[0] || current.coords[1]!==e.coords[1]){
+        current.marker.setLatLng(e.coords);
+        current.coords=e.coords;
+      }
+      if(current.popup!==popup){current.marker.setPopupContent(popup);current.popup=popup;}
+      if(current.color!==color){current.marker.setStyle({color,fillColor:color});current.color=color;}
+    }
+    const pending={pending:0,working:0,temporary:0,missing:0,unavailable:0};
+    for(const event of events)if(!event.coords)pending[event.geoStatus||'unavailable']++;
+    if(note){
+      const details=[
+        [pending.pending+pending.working,'en geocodificación'],
+        [pending.temporary,'con fallo temporal'],
+        [pending.missing,'sin coincidencia verificable'],
+        [pending.unavailable,'sin dirección precisa']
+      ].filter(([amount])=>amount).map(([amount,label])=>amount+' '+label).join(' · ');
+      const summary=events.length
+        ? plMapMarkers.size+' ubicaciones en el mapa'+(details?' · '+details:'')+'.'
+        : 'No hay registros para la fecha y los filtros seleccionados.'+(plMapBaseReady?' Consultá el estado del mapa base.':'');
+      note.textContent=(plMapBaseReady?'':'⚠ Mapa base no disponible. Se volverá a intentar. ')+summary;
+    }
+  }catch(err){console.error('[Planner] Error renderizando mapa:',err);if(note)note.textContent='⚠ Error al actualizar las ubicaciones del mapa.';}
+  finally{if(count)count.textContent=String(plMapMarkers.size);}
 }
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css"
@@ -4995,7 +5043,7 @@ body.theme-light :is(#op-map,#ob-map,#gr-map,#col-map,#an-map,#dv-map){opacity:1
 }
 </style>
 <style id="lc27-dark-map-tiles">
-/* Target ONLY raster tiles supplied as a Stadia fallback: darker material,
+/* Target ONLY Stadia dark raster tiles: darker material,
    without darkening operational icons, popups, clusters, controls or labels. */
 .dc25-base-layer.dc25-filter-deep img.leaflet-tile,
 .dc25-base-layer.dc25-filter-deep .leaflet-tile{
@@ -5823,7 +5871,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
     <div class="dc23-head-actions"><span class="dc23-readonly"><span aria-hidden="true">●</span> SOLO LECTURA</span><button class="pl-btn pl-refresh" onclick="plRefresh(true)">↻ Actualizar fuentes</button></div>
   </div>
   <div class="pl-controls">
-    <label>Jornada <input type="date" id="pl-date" onchange="plRender();plGeocodeVisible(this.value)"></label>
+    <label>Jornada <input type="date" id="pl-date" onchange="plRender()"></label>
     <button class="pl-btn" onclick="plToday()">Hoy</button>
     <label>Fuente <select id="pl-source" onchange="plRender()"><option value="all">Todas</option><option value="obras">Obras</option><option value="gruas">Grúas</option><option value="operativa">Vista Operativa</option><option value="solicitudes">Solicitudes</option><option value="semaforos">Semáforos</option><option value="desvios">Desvíos planificados</option></select></label>
     <label>Prioridad <select id="pl-priority" onchange="plRender()"><option value="all">Todas</option><option value="critical">Crítica</option><option value="high">Alta</option><option value="medium">Media</option><option value="info">Informativa</option></select></label>
@@ -6732,21 +6780,62 @@ function rlGuard(id, cooldownMs) {
 }
 
 // ── Nominatim throttle (max 1 req/s — ToS de OSM) ────────────────────────
-let _nomLastTs = 0;
-async function nominatimFetch(url) {
-  const gap = Date.now() - _nomLastTs;
-  if (gap < 1100) await new Promise(r => setTimeout(r, 1100 - gap));
-  _nomLastTs = Date.now();
-  mapDiagRequestStart('Nominatim');
-  try {
-    const r = await fetch(url, { headers: { 'Accept-Language': 'es', 'User-Agent': 'CABA-Supervisor/1.0' } });
-    mapDiagRequestEnd('Nominatim', r.ok, String(r.status));
-    if (!r.ok) return null;
-    return r.json();
-  } catch(e) {
-    mapDiagRequestEnd('Nominatim', false, 'NETWORK');
-    return null;
-  }
+const GEO_REQUEST_TIMEOUT = 6000;
+const geoProviders = {
+  USIG: { interval: 350, next: 0, blockedUntil: 0, tail: Promise.resolve() },
+  Nominatim: { interval: 1100, next: 0, blockedUntil: 0, tail: Promise.resolve() }
+};
+
+function geoRequest(provider, url, options) {
+  const state = geoProviders[provider];
+  const task = state.tail.then(async () => {
+    if (Date.now() < state.blockedUntil) return { retryAt: state.blockedUntil };
+    const wait = state.next - Date.now();
+    if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+    state.next = Date.now() + state.interval;
+    const controller = new AbortController();
+    let timer;
+    mapDiagRequestStart(provider);
+    try {
+      const request = async () => {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        if(controller.signal.aborted)throw new Error('TIMEOUT');
+        if (response.ok) return { data: await response.json(), status: response.status };
+        if (response.status === 429 || (response.status === 503 && response.headers.get('Retry-After'))) {
+          const header = response.headers.get('Retry-After');
+          const delay = header && /^\d+$/.test(header) ? Number(header) * 1000 : Date.parse(header) - Date.now();
+          state.blockedUntil = Date.now() + Math.max(state.interval, Number.isFinite(delay) ? delay : 30000);
+          return { status: response.status, retryAt: state.blockedUntil };
+        }
+        return { status: response.status, retry: response.status === 408 || response.status >= 500 };
+      };
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error('TIMEOUT'));
+        }, GEO_REQUEST_TIMEOUT);
+      });
+      const result = await Promise.race([request(), timeout]);
+      mapDiagRequestEnd(provider, 'data' in result, String(result.status));
+      return result;
+    } catch (err) {
+      mapDiagRequestEnd(provider, false, controller.signal.aborted ? 'TIMEOUT' : 'NETWORK');
+      return { retry: true };
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+  state.tail = task.catch(() => {});
+  return task;
+}
+
+async function geoFetch(provider, url, options) {
+  const result = await geoRequest(provider, url, options);
+  return result.retry ? geoRequest(provider, url, options) : result;
+}
+
+function nominatimFetch(url) {
+  return geoFetch('Nominatim', url, { headers: { 'Accept-Language': 'es' } });
 }
 
 // ════════════════════════════════════════════
@@ -6759,26 +6848,30 @@ let filtroActivo = 'todos';
 // Op state
 let opActivos = [], opSelIdx = 0, opCycleTimer = null;
 let opMap = null, opMarkers = {};
-let geoCache = {}, isGeocoding = false;
+let geoCache = Object.create(null), isGeocoding = false;
+let geoCacheDirty = false;
 const GEO_CACHE_MAX = 2000;     // máximo de entradas — reducido para limitar exposición
 const GEO_CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 días en ms
+const geoSettled = new Map(), geoPending = new Map();
+const GEO_MISSING_TTL = 30 * 60 * 1000, GEO_RETRY_TTL = 60000, GEO_PENDING_MAX = 64;
 try {
   const raw = JSON.parse(localStorage.getItem('sup_geo_v2') || '{}');
-  if (raw.__ts && (Date.now() - raw.__ts) < GEO_CACHE_TTL) {
-    const { __ts, ...entries } = raw; // eslint-disable-line no-unused-vars
-    geoCache = entries;
+  if (raw?.__ts && (Date.now() - raw.__ts) < GEO_CACHE_TTL) {
+    const valid = Object.entries(raw).filter(([, c]) => c && Number.isFinite(c.lat) && Number.isFinite(c.lng));
+    for (const [key, coords] of valid.slice(-GEO_CACHE_MAX)) geoCache[key] = coords;
+    if (valid.length !== Object.keys(raw).length - 1) {
+      localStorage.setItem('sup_geo_v2', JSON.stringify({ ...geoCache, __ts: raw.__ts }));
+    }
   } else {
     localStorage.removeItem('sup_geo_v2'); // caché vencido — limpiar
   }
-} catch(e) { localStorage.removeItem('sup_geo_v2'); }
+} catch(e) { /* El caché en memoria sigue disponible si el almacenamiento falla. */ }
 
 function saveGeo() {
+  if(!geoCacheDirty)return;
   try {
-    const keys = Object.keys(geoCache);
-    if (keys.length > GEO_CACHE_MAX) {
-      keys.slice(0, keys.length - GEO_CACHE_MAX).forEach(k => delete geoCache[k]);
-    }
     localStorage.setItem('sup_geo_v2', JSON.stringify({ ...geoCache, __ts: Date.now() }));
+    geoCacheDirty=false;
   } catch(e) {}
 }
 
@@ -7997,6 +8090,7 @@ function renderOpList() {
     scroll.innerHTML='<div class="op-empty"><span>Sin incidentes activos</span></div>'; return;
   }
   let html='';
+  const cardIds=[];
   // Sucesos
   if(opActivos.length) {
     const groups=new Map();
@@ -8018,21 +8112,21 @@ function renderOpList() {
           <span class="op-group-cnt">${items.length}</span>
         </div>`;
       for(const item of items) {
+        cardIds.push(item.id);
         const isSel=item.id===(opActivos[opSelIdx]?.id);
         const crit=(item.criticidad||'').toUpperCase();
         const acc=critColor(crit);
         const el=calcElapsed(item.hora);
         html+=`<div class="op-card${isSel?' sel':''}"
-          style="border-color:${isSel?acc+'66':'var(--border)'}"
-          onclick="opSelect('${opEsc(item.id)}')">
+          style="border-color:${isSel?acc+'66':'var(--border)'}">
           <div class="op-card-accent" style="background:${acc};opacity:${isSel?1:0.5}"></div>
           <div class="op-card-inner">
             <div class="op-card-row1">
               <span class="op-card-sub">${opEsc(item.subtipo||item.tipoOp||'')}</span>
               <div class="op-card-badges">
                 ${el?`<span class="op-card-elapsed" style="${isSel?`color:${acc};border-color:${acc}44`:''}">${el}</span>`:''}
-                ${item.hora?`<span class="op-card-hora">${item.hora.slice(0,5)}</span>`:''}
-                ${crit?`<span class="op-card-crit" style="color:${acc}">${item.criticidad}</span>`:''}
+                ${item.hora?`<span class="op-card-hora">${opEsc(item.hora.slice(0,5))}</span>`:''}
+                ${crit?`<span class="op-card-crit" style="color:${acc}">${opEsc(item.criticidad)}</span>`:''}
               </div>
             </div>
             <div class="op-card-street">${opEsc(item.calle1||'SIN DATO')}</div>
@@ -8076,6 +8170,9 @@ function renderOpList() {
   }
 
   scroll.innerHTML=html;
+  scroll.querySelectorAll('.op-card').forEach((card,i)=>{
+    card.addEventListener('click',()=>opSelect(cardIds[i]));
+  });
   const sel=scroll.querySelector('.op-card.sel');
   if(sel) sel.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -8784,128 +8881,205 @@ function updateOpMapSel() {
 }
 
 // ── GEOCODING ───────────────────────────────────────────────────────────────
-async function geocode(c1,c2,options={}) {
+function geoQuery(c1,c2,options={}) {
+  const clean=s=>String(s||'').trim().replace(/\bAV\.\s*/gi,'').replace(/[.,]+/g,'').replace(/\s+/g,' ').trim();
+  const first=clean(c1), second=clean(c2);
+  const numeric=/^\d+$/.test(second);
+  const intersection=(!second || second==='-') && first.match(/^(.+?)\s+(?:y|&)\s+(.+)$/i);
+  const a=intersection ? intersection[1] : first==='-'?'':(first && numeric?first+' '+second:first);
+  const b=intersection ? intersection[2] : numeric || second==='-'?'':second;
+  const heightMatch=!b && a.match(/^(.+?)\s+(\d+)(?:\s+(?:Ciudad Autónoma de Buenos Aires|CABA Argentina))?$/i);
+  const height=options.height!=null ? Number(String(options.height).replace(',','.').match(/\d+(?:\.\d+)?/)?.[0]) : heightMatch ? Number(heightMatch[2]) : null;
+  const streetA=clean(options.streetA || (heightMatch ? heightMatch[1] : a)).replace(/\s+(?:Ciudad Autónoma de Buenos Aires|CABA Argentina)$/i,'');
+  const streetB=clean(options.streetB || b);
+  const precise=!!streetB || Number.isFinite(height);
+  const prefix=options.cachePrefix ? options.cachePrefix+'|' : '';
   const strict=options.strict===true;
-  const cachePrefix=options.cachePrefix ? `${options.cachePrefix}|` : '';
-  const k=`${cachePrefix}${c1}|${c2}`;
-  const clean=s=>(s||'').trim().replace(/\bAV\.\s*/gi,'').replace(/[.,]+/g,'').replace(/\s+/g,' ').trim();
-  const a=clean(c1), b=c2&&c2.trim()&&c2.trim()!=='-'?clean(c2):null;
-  const dir=b?`${a} y ${b}`:a;
-  if(geoCache[k]!==undefined) {
-    const cached = geoCache[k];
-    console.log('[GRUA GEO]', { direccion: dir, lat: cached?.lat ?? null, lng: cached?.lng ?? null, etapa: 'cache-hit', cacheKey: k, cacheValue: cached });
-    return cached;
-  }
-
-  // En modo estricto (Grúas) no aceptamos el comportamiento genérico del
-  // geocoder que puede degradar una dirección/intersección a una calle sola.
-  // Eso es precisamente lo que puede producir un mismo punto genérico para
-  // muchas calles distintas. Seguimos usando la MISMA infraestructura USIG.
-  const streetA=clean(options.streetA||'');
-  const streetB=clean(options.streetB||'');
-  const expectedType=options.expectedType||'';
-  const requestedHeight=options.height!=null ? Number(String(options.height).replace(',','.').match(/\d+(?:\.\d+)?/)?.[0]) : null;
-  const streetKey=v=>clean(v).replace(/\b(AVENIDA|AV|CALLE|PASAJE|PJE|BOULEVARD|BLVD)\b/gi,' ').replace(/[^A-Z0-9Ñ\s]/gi,' ').replace(/\s+/g,' ').trim().toUpperCase();
-  const sameStreet=(expected,actual)=>{
-    const e=streetKey(expected), akey=streetKey(actual);
-    if(!e||!akey)return false;
-    return e===akey || e.includes(akey) || akey.includes(e);
-  };
-
-  const tryU=async url=>{
-    try{
-      mapDiagRequestStart('USIG');
-      const r=await fetch(url);
-      if(!r.ok){mapDiagRequestEnd('USIG',false,String(r.status));return null;}
-      mapDiagRequestEnd('USIG',true,String(r.status));
-      const d=await r.json();
-      const results=Array.isArray(d?.direccionesNormalizadas)?d.direccionesNormalizadas:[];
-      for(const res of results){
-        if(!res?.coordenadas)continue;
-        if(strict){
-          if(expectedType && res.tipo && res.tipo!==expectedType)continue;
-          if(res.nombre_partido && !/^(CABA|CAPITAL FEDERAL|CIUDAD AUTONOMA DE BUENOS AIRES)$/i.test(String(res.nombre_partido).trim()))continue;
-          if(res.nombre_localidad && !/^(CABA|CAPITAL FEDERAL|CIUDAD AUTONOMA DE BUENOS AIRES)$/i.test(String(res.nombre_localidad).trim()))continue;
-          if(streetA && !sameStreet(streetA,res.nombre_calle))continue;
-          if(streetB && !sameStreet(streetB,res.nombre_calle_cruce))continue;
-          if(requestedHeight!=null && Number.isFinite(Number(res.altura)) && Math.abs(Number(res.altura)-requestedHeight)>2)continue;
-          if(requestedHeight!=null && !Number.isFinite(Number(res.altura)))continue;
-        }
-        const{x,y}=res.coordenadas;
-        if(x==null||y==null)continue;
-        const c={lat:parseFloat(y),lng:parseFloat(x)};
-        console.log('[GRUA GEO]', { direccion: dir, lat: c.lat, lng: c.lng, etapa: 'USIG-respuesta', rawX:x, rawY:y, cacheKey:k });
-        if(isInsideCABA(c.lat,c.lng)){
-          console.log('[GRUA GEO]', { direccion: dir, lat: c.lat, lng: c.lng, etapa: 'USIG-aceptada', cacheKey:k });
-          return c;
-        }
-        console.warn('[GRUA GEO]', { direccion: dir, lat: c.lat, lng: c.lng, etapa: 'USIG-rechazada-fuera-CABA', cacheKey:k });
-      }
-    }catch(e){}
-    return null;
-  };
-
-  let coords=await tryU(`https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=${encodeURIComponent(dir)}&geocodificar=true&maxOptions=10${strict&&expectedType?`&tipoResultado=${encodeURIComponent(expectedType)}`:''}`);
-  if(!coords && !strict && b) coords=await tryU(`https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=${encodeURIComponent(a)}&geocodificar=true`);
-
-  // Fallback Nominatim. En modo estricto también se prohíbe el fallback a
-  // "calle sola": la consulta conserva la altura o la intersección.
-  if(!coords) {
-    const tryN=async query=>{
-      try{
-        const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=ar&viewbox=-58.540,-34.525,-58.330,-34.710&bounded=1&addressdetails=1`;
-        const d=await nominatimFetch(url);
-        if(!d)return null;
-        for(const item of d){
-          const c={lat:parseFloat(item.lat),lng:parseFloat(item.lon)};
-          console.log('[GRUA GEO]', { direccion: dir, lat: c.lat, lng: c.lng, etapa: 'Nominatim-respuesta', display:item.display_name||'', cacheKey:k });
-          if(!isInsideCABA(c.lat,c.lng)){
-            console.warn('[GRUA GEO]', { direccion: dir, lat: c.lat, lng: c.lng, etapa: 'Nominatim-rechazada-fuera-CABA', cacheKey:k });
-            continue;
-          }
-          if(strict){
-            const addr=item.address||{};
-            if(streetA && !sameStreet(streetA,addr.road||''))continue;
-            if(streetB){
-              const display=streetKey(item.display_name||'');
-              if(!sameStreet(streetB,display) && !sameStreet(streetB,addr.road||''))continue;
-            }
-            if(requestedHeight!=null && addr.house_number && Math.abs(Number(String(addr.house_number).match(/\d+(?:\.\d+)?/)?.[0])-requestedHeight)>5)continue;
-          }
-          return c;
-        }
-      }catch(e){}
-      return null;
-    };
-    if(b) coords=await tryN(`${a} y ${b}, CABA, Ciudad de Buenos Aires, Argentina`);
-    if(!coords && !strict) coords=await tryN(`${a}, CABA, Ciudad de Buenos Aires, Argentina`);
-    if(!coords && strict && !b && streetA && requestedHeight!=null) coords=await tryN(`${streetA} ${requestedHeight}, CABA, Ciudad de Buenos Aires, Argentina`);
-  }
-
-  geoCache[k]=coords||null;
-  console.log('[GRUA GEO]', { direccion: dir, lat: coords?.lat ?? null, lng: coords?.lng ?? null, etapa: coords ? 'resultado-final' : 'sin-resultado', cacheKey:k, cacheValue:geoCache[k] });
-  if (!coords) dqAuxError = true;
-  return coords||null;
+  const qualifiers=strict || options.streetA || options.streetB || options.height!=null || options.expectedType
+    ? [strict,streetA.toUpperCase(),streetB.toUpperCase(),height,options.expectedType||''] : [];
+  const address=[a.toUpperCase(),b.toUpperCase()];
+  if(b && !qualifiers.length)address.sort();
+  const key='geo3|'+JSON.stringify([...address,...qualifiers]);
+  return { a,b,streetA,streetB,height,precise,key,legacy:prefix+c1+'|'+c2 };
 }
 
-async function opGeocodePending() {
-  if(isGeocoding) return; isGeocoding=true;
-  // Apply cache first
-  [...opActivos,...allSemaforos,...allCongestiones].forEach(s=>{
-    const k=`${s.calle1}|${s.calle2}`;
-    if(geoCache[k]&&s.lat==null){s.lat=geoCache[k].lat;s.lng=geoCache[k].lng;}
+function geoCachedCoords(query, verifiedOnly=false, allowLegacy=true) {
+  const current=geoCache[query.key];
+  if(current && isInsideCABA(current.lat,current.lng) && (!verifiedOnly || current.verified)) return current;
+  const legacy=geoCache[query.legacy];
+  if(allowLegacy && !verifiedOnly && legacy && isInsideCABA(legacy.lat,legacy.lng)) return {lat:legacy.lat,lng:legacy.lng,verified:false};
+  return null;
+}
+
+function geoQueryStatus(query, verifiedOnly=false, allowLegacy=true) {
+  const coords=geoCachedCoords(query,verifiedOnly,allowLegacy);
+  if(coords) return {status:'found',coords};
+  if(!query.a || (verifiedOnly && !query.precise)) return {status:'missing'};
+  const settled=geoSettled.get(query.key);
+  if(settled && settled.retryAt>Date.now()) return settled;
+  if(settled) geoSettled.delete(query.key);
+  return {status:geoPending.has(query.key)?'working':'pending'};
+}
+
+function geocodeResult(c1,c2,options={}) {
+  const query=geoQuery(c1,c2,options);
+  const state=geoQueryStatus(query,options.verifiedOnly,options.allowLegacy);
+  if(state.status==='working') return geoPending.get(query.key);
+  if(state.status!=='pending') return Promise.resolve(state);
+  if(geoPending.size>=GEO_PENDING_MAX) return Promise.resolve({status:'temporary',retryAt:Date.now()+GEO_RETRY_TTL});
+  const task=Promise.resolve().then(async () => {
+    try {
+      const result=await resolveGeocode(query,options).catch(()=>({status:'temporary',retryAt:Date.now()+GEO_RETRY_TTL}));
+      if(result.status==='found') {
+        if(!geoCache[query.key]) {
+          const keys=Object.keys(geoCache);
+          if(keys.length>=GEO_CACHE_MAX) delete geoCache[keys[0]];
+        }
+        geoCache[query.key]=result.coords;
+        geoCacheDirty=true;
+      } else {
+        if(geoSettled.size>=GEO_CACHE_MAX) geoSettled.delete(geoSettled.keys().next().value);
+        geoSettled.set(query.key,result);
+        if(result.status==='temporary') dqAuxError=true;
+      }
+      return result;
+    } finally {
+      geoPending.delete(query.key);
+    }
   });
-  updateOpMap();
-  const pending=[...opActivos,...allSemaforos,...allCongestiones].filter(s=>s.lat==null&&geoCache[`${s.calle1}|${s.calle2}`]===undefined);
-  for(let i=0;i<pending.length;i+=5) {
-    await Promise.all(pending.slice(i,i+5).map(async s=>{
-      const c=await geocode(s.calle1,s.calle2);
-      if(c){s.lat=c.lat;s.lng=c.lng;}
-    }));
-    saveGeo(); updateOpMap();
-    await new Promise(r=>setTimeout(r,350));
+  geoPending.set(query.key,task);
+  return task;
+}
+
+async function geocode(c1,c2,options={}) {
+  return (await geocodeResult(c1,c2,options)).coords || null;
+}
+
+function geoApply(record,coords) {
+  if(!coords || record.lat!=null) return;
+  record.lat=coords.lat;
+  record.lng=coords.lng;
+  record._geoUnverified=coords.verified!==true;
+}
+
+function geoStreetKey(value) {
+  return String(value||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u0302\u0308]/g,'').normalize('NFC')
+    .replace(/[^A-ZÑ0-9]+/g,' ').replace(/\b(AVENIDA|AVDA|AV|CALLE|PASAJE|PJE|BOULEVARD|BLVD)\b/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+
+function geoCrossStreetKeys(value) {
+  const stripTitle=part=>geoStreetKey(part)
+    .replace(/\b(?:T(?:ENIENTE|TE)\s+G(?:ENERAL|RAL)|G(?:ENERAL|RAL)|P(?:RESIDENTE|TE)|D(?:OCTOR|R))\b/g,' ')
+    .replace(/\s+/g,' ').trim();
+  const parts=String(value||'').split(',').map(stripTitle).filter(Boolean);
+  if(parts.length===2)return [parts.join(' '),[parts[1],parts[0]].join(' ')];
+  return [stripTitle(value)];
+}
+
+function geoMatchesCross(streetA,streetB,road,cross,label) {
+  const a=geoCrossStreetKeys(streetA), b=geoCrossStreetKeys(streetB);
+  const matches=(expected,value)=>geoCrossStreetKeys(value).some(key=>key && expected.includes(key));
+  const pair=(first,second)=>(matches(a,first) && matches(b,second)) || (matches(b,first) && matches(a,second));
+  if(a.some(key=>key && b.includes(key)))return false;
+  if(road && cross)return pair(road,cross);
+  // Un cruce textual tiene que nombrar las dos calles como un par explícito en el primer segmento.
+  const textPair=value=>{
+    const parts=String(value||'').split(',')[0].split(/\s+(?:y|&|esquina(?:\s+con)?|intersecci[oó]n\s+con)\s+/i);
+    return parts.length===2 && pair(parts[0],parts[1]);
+  };
+  if((road && !matches(a,road) && !matches(b,road) && !textPair(road)) ||
+     (cross && !matches(a,cross) && !matches(b,cross)))return false;
+  return textPair(road) || textPair(label);
+}
+
+async function resolveGeocode(query,options) {
+  const {a,b,streetA,streetB,height:requestedHeight,precise}=query;
+  const strict=options.strict===true;
+  const expectedType=options.expectedType||'';
+  const dir=b?a+' y '+b:a;
+  const sameStreet=(expected,actual)=>!!geoStreetKey(expected) && geoStreetKey(expected)===geoStreetKey(actual);
+  const hasHeight=value=>!Number.isFinite(requestedHeight) || (value!=null && value!=='' && Number(value)===requestedHeight);
+  const hasCabaLabel=value=>!value || /^(CABA|CAPITAL FEDERAL|CIUDAD(?: AUTONOMA)? DE BUENOS AIRES)$/i.test(
+    String(value).trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  );
+  let temporary=false, retryAt=0;
+  function results(response, rows) {
+    if(Array.isArray(rows)) return rows;
+    temporary=true;
+    retryAt=Math.max(retryAt,response.retryAt||0);
+    return [];
   }
-  isGeocoding=false;
+
+  const tryU=async url=>{
+    const response=await geoFetch('USIG',url);
+    for(const res of results(response,response.data?.direccionesNormalizadas)){
+      if(!res?.coordenadas)continue;
+      if(strict || precise){
+        if(expectedType && res.tipo!==expectedType)continue;
+        if(!hasCabaLabel(res.nombre_partido) || !hasCabaLabel(res.nombre_localidad))continue;
+        const matches=streetB
+          ? geoMatchesCross(streetA,streetB,res.nombre_calle,res.nombre_calle_cruce,res.direccion)
+          : sameStreet(streetA,res.nombre_calle);
+        if(!matches || !hasHeight(res.altura))continue;
+      }
+      const c={lat:Number(res.coordenadas.y),lng:Number(res.coordenadas.x)};
+      if(isInsideCABA(c.lat,c.lng))return c;
+    }
+    return null;
+  };
+  let coords=await tryU(`https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=${encodeURIComponent(dir)}&geocodificar=true&maxOptions=10${strict&&expectedType?`&tipoResultado=${encodeURIComponent(expectedType)}`:''}`);
+
+  if(!coords) {
+    // Nominatim debe corroborar la altura o ambas calles; nunca se consulta una calle sola como sustituto.
+    const query=dir+', CABA, Ciudad de Buenos Aires, Argentina';
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=ar&viewbox=-58.540,-34.525,-58.330,-34.710&bounded=1&addressdetails=1`;
+    const response=await nominatimFetch(url);
+    for(const item of results(response,response.data)){
+      const c={lat:Number(item?.lat),lng:Number(item?.lon)};
+      if(!isInsideCABA(c.lat,c.lng))continue;
+      const addr=item.address||{};
+      if(strict || precise){
+        const matches=streetB
+          ? (!addr.house_number && geoMatchesCross(streetA,streetB,addr.road||addr.pedestrian,addr.road_crossing,item.display_name))
+          : sameStreet(streetA,addr.road);
+        if(!matches || !hasHeight(addr.house_number))continue;
+      }
+      coords=c;
+      break;
+    }
+  }
+  if(coords) return {status:'found',coords:{...coords,verified:precise}};
+  return temporary
+    ? {status:'temporary',retryAt:Math.max(Date.now()+GEO_RETRY_TTL,retryAt)}
+    : {status:'missing',retryAt:Date.now()+GEO_MISSING_TTL};
+}
+
+
+async function opGeocodePending() {
+  if(isGeocoding)return;
+  const sources=[allSucesos,allSemaforos,allCongestiones];
+  const current=()=>sources[0]===allSucesos && sources[1]===allSemaforos && sources[2]===allCongestiones;
+  isGeocoding=true;
+  try{
+    const records=sources.flat();
+    for(const s of records)geoApply(s,geoCachedCoords(geoQuery(s.calle1,s.calle2)));
+    updateOpMap();
+    const pending=records.filter(s=>s.lat==null && String(s.calle1||'').trim());
+    for(let i=0;i<pending.length && current();i+=5){
+      await Promise.all(pending.slice(i,i+5).map(async s=>{
+        const c=await geocode(s.calle1,s.calle2);
+        if(current())geoApply(s,c);
+      }));
+      if(current())updateOpMap();
+    }
+  }catch(err){
+    console.warn('[Operativa] Se interrumpió la geocodificación.');
+  }finally{
+    saveGeo();
+    isGeocoding=false;
+    if(!current())opGeocodePending();
+  }
 }
 
 // ════════════════════════════════════════════
@@ -8936,7 +9110,7 @@ function abrirTurno(navigate=true) {
   if(ce) ce.innerHTML=critSorted.slice(0,5).map((s,i)=>{
     const dir=[s.calle1,s.calle2].filter(x=>x&&x!=='-').join(' y ')||s.tenor||'Sin ubicación';
     const color=norm(s.criticidad)==='ALTA'?'var(--red)':norm(s.criticidad)==='MEDIA'?'var(--amber)':'var(--text3)';
-    return `<div class="resumen-rank"><span class="resumen-rank-num">${i+1}.</span><span class="resumen-rank-name">${dir}</span><span class="resumen-rank-value" style="color:${color}">${s.criticidad||'—'}</span></div>`;
+    return `<div class="resumen-rank"><span class="resumen-rank-num">${i+1}.</span><span class="resumen-rank-name">${opEsc(dir)}</span><span class="resumen-rank-value" style="color:${color}">${opEsc(s.criticidad||'—')}</span></div>`;
   }).join('') || '<span style="color:var(--text3);font-size:10px">Sin sucesos activos</span>';
 
   const rows=[
@@ -8950,7 +9124,7 @@ function abrirTurno(navigate=true) {
   const be=document.getElementById('turno-bases');
   if(be) be.innerHTML=bSorted.slice(0,5).map(([k,v],i)=>`
     <div class="turno-base-row">
-      <span style="color:${i===0?'var(--gold)':'var(--text3)'}">${i+1}. ${k}</span>
+      <span style="color:${i===0?'var(--gold)':'var(--text3)'}">${i+1}. ${opEsc(k)}</span>
       <span style="font-family:var(--mono);color:${i===0?'var(--gold)':'var(--text3)'}">${v} eventos</span>
     </div>`).join('')||'<span style="color:var(--text3)">Sin datos</span>';
 
@@ -9079,7 +9253,7 @@ function abrirTurno(navigate=true) {
       `<div class="exec-line"><span class="exec-strong">${suc.length}</span> sucesos activos.</div>`,
       `<div class="exec-line"><span class="exec-strong">${media}</span> de criticidad media.</div>`,
       `<div class="exec-line"><span class="exec-strong">${semFalla}</span> semáforos fuera de servicio.</div>`,
-      `<div class="exec-line">Base más exigida: <span class="exec-strong">${topBase}</span>.</div>`,
+      `<div class="exec-line">Base más exigida: <span class="exec-strong">${opEsc(topBase)}</span>.</div>`,
       `<div class="exec-line">Nivel operativo: <span class="exec-strong">${nivel}</span>.</div>`,
       alta===0 ? `<div class="exec-line">Sin eventos de criticidad alta.</div>` : `<div class="exec-line">${alta} evento${alta===1?'':'s'} de criticidad alta.</div>`
     ].join('');
@@ -9361,7 +9535,7 @@ function renderOpCongMarkers() {
   });
 
   // Geocodificar congestiones que todavía no tienen coords
-  const pending = allCongestiones.filter(s => s.lat == null && geoCache[`${s.calle1}|${s.calle2}`] === undefined);
+  const pending = allCongestiones.filter(s => s.lat == null && ['found','pending','working'].includes(geoQueryStatus(geoQuery(s.calle1,s.calle2)).status));
   if (pending.length) opGeocodePending(); // reutiliza el geocoder existente
 }
 
@@ -9410,9 +9584,9 @@ const DC25_CANVAS_FILTERS={
 };
 const MAP_TILES={
   dark:[
-    // Only use CARTO Dark Matter with a valid, separate CARTO Basemaps key.
-    ...(DC27_CARTO_API_KEY ? [{provider:'CARTO Dark Matter',url:'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key='+encodeURIComponent(DC27_CARTO_API_KEY),attribution:DC27_CARTO_ATTRIBUTION,maxNativeZoom:19,filter:'none'}] : []),
-    {provider:'Stadia Smooth Dark · negro intenso',url:'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png?api_key='+DC26_STADIA_API_KEY,attribution:DC26_STADIA_ATTRIBUTION,maxNativeZoom:20,filter:'deep'}
+    {provider:'Stadia Smooth Dark · negro intenso',url:'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png?api_key='+DC26_STADIA_API_KEY,attribution:DC26_STADIA_ATTRIBUTION,maxNativeZoom:20,filter:'deep'},
+    // CARTO remains the fallback when its separate Basemaps key is configured.
+    ...(DC27_CARTO_API_KEY ? [{provider:'CARTO Dark Matter',url:'https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key='+encodeURIComponent(DC27_CARTO_API_KEY),attribution:DC27_CARTO_ATTRIBUTION,maxNativeZoom:19,filter:'none'}] : [])
   ],
   gray:[{provider:'OpenStreetMap · gris',url:DC25_OSM_URL,attribution:DC25_TILE_ATTRIBUTION,maxNativeZoom:19,filter:'gray'}],
   light:[
@@ -9421,7 +9595,7 @@ const MAP_TILES={
   ]
 };
 const MAP_LABELS={dark:null,gray:null,light:null};
-const MAP_ATTRIB={dark:DC27_CARTO_ATTRIBUTION,gray:DC25_TILE_ATTRIBUTION,light:DC26_STADIA_ATTRIBUTION};
+const MAP_ATTRIB={dark:DC26_STADIA_ATTRIBUTION,gray:DC25_TILE_ATTRIBUTION,light:DC26_STADIA_ATTRIBUTION};
 let currentMapStyle='dark';
 let baseLayers={};
 let labelLayers={};
@@ -10469,33 +10643,40 @@ function addNewObrasToMap(obras) {
   }
 }
 
+
 async function obrasGeocodePending() {
-  if (isObGeocoding) return; isObGeocoding = true;
-  // Apply cache first
-  allObras.forEach(o => {
-    const { c1, c2 } = obGeoQuery(o);
-    const k = `${c1}|${c2}`;
-    if (geoCache[k] && o.lat == null) { o.lat = geoCache[k].lat; o.lng = geoCache[k].lng; }
-  });
-  updateObrasMap();
-  const pending = allObras.filter(o => { const { c1, c2 } = obGeoQuery(o); return o.lat == null && geoCache[`${c1}|${c2}`] === undefined; });
-  for (let i = 0; i < pending.length; i += 4) {
-    const batch = pending.slice(i, i + 4);
-    await Promise.all(batch.map(async o => {
-      const { c1, c2 } = obGeoQuery(o);
-      const coords = await geocode(c1, c2);
-      if (coords) { o.lat = coords.lat; o.lng = coords.lng; }
-    }));
-    saveGeo();
-    addNewObrasToMap(batch);
-    // La geocodificación de Obras también alimenta la inteligencia Grúa ↔ Obra.
-    if (typeof grIntelVersion !== 'undefined') {
-      grIntelVersion++;
-      if (typeof allGruas !== 'undefined' && allGruas.length) renderGruas();
+  if(isObGeocoding)return;
+  const records=allObras;
+  isObGeocoding=true;
+  try{
+    for(const o of records){
+      const {c1,c2}=obGeoQuery(o);
+      geoApply(o,geoCachedCoords(geoQuery(c1,c2)));
     }
-    await new Promise(r => setTimeout(r, 400));
+    updateObrasMap();
+    const pending=records.filter(o=>o.lat==null && obGeoQuery(o).c1);
+    for(let i=0;i<pending.length && records===allObras;i+=4){
+      const batch=pending.slice(i,i+4);
+      await Promise.all(batch.map(async o=>{
+        const {c1,c2}=obGeoQuery(o);
+        const coords=await geocode(c1,c2);
+        if(records===allObras)geoApply(o,coords);
+      }));
+      if(records!==allObras)break;
+      addNewObrasToMap(batch);
+      // Las ubicaciones nuevas alimentan el cruce Grúa ↔ Obra.
+      if(typeof grIntelVersion!=='undefined'){
+        grIntelVersion++;
+        if(typeof allGruas!=='undefined' && allGruas.length)renderGruas();
+      }
+    }
+  }catch(err){
+    console.warn('[Obras] Se interrumpió la geocodificación.');
+  }finally{
+    saveGeo();
+    isObGeocoding=false;
+    if(records!==allObras)obrasGeocodePending();
   }
-  isObGeocoding = false;
 }
 
 async function cargarObras() {
@@ -10715,16 +10896,17 @@ function grGeoQuery(g) {
   return grGeoQueries(g)[0] || { c1:'', c2:'' };
 }
 
-async function grGeocodeCandidates(g) {
+async function grGeocodeCandidates(g, current) {
   const queries = grGeoQueries(g);
   if (!queries.length) return null;
 
   for (const q of queries) {
+    if(!current())return null;
     // ESTE es el mismo pipeline de Obras: mismo obGeoQuery() y misma
     // geocode(), que a su vez comparte geoCache, USIG y Nominatim.
     console.log('[GRUA GEO]', { direccion: `${q.c1}${q.c2 ? ' y ' + q.c2 : ''}`, lat: null, lng: null, etapa: 'antes-geocode', query: q });
     const coords = await geocode(q.c1, q.c2);
-    if (coords) return { lat:Number(coords.lat), lng:Number(coords.lng), c1:q.c1, c2:q.c2 };
+    if (coords) return { ...coords, c1:q.c1, c2:q.c2 };
   }
   return null;
 }
@@ -11487,38 +11669,39 @@ async function grGeocodePending() {
     });
     return;
   }
+  const records=allGruas;
   isGrGeocoding = true;
-
-  // AUDITORÍA EXCLUSIVA DE LA COLA.
-  // No modifica el criterio de selección ni el tamaño del lote: solamente
-  // registra qué entra, qué queda fuera y cuándo se procesa.
-  const BATCH_SIZE = 4;
-  const AUDIT_TARGETS = new Set([
-    'AGUERO 581',
-    'ANTARTIDA ARGENTINA AV. 1455',
-    'SANTA FE AV. 1146',
-    'BELGRANO 2020',
-    "O'HIGGINS 3321"
-  ]);
-  const normAuditAddress = g => String(grAddress(g) || '')
-    .replace(/\s+/g, ' ').trim().toUpperCase();
-  const isAuditTarget = g => AUDIT_TARGETS.has(normAuditAddress(g));
-  const visibleAtQueueBuild = grFilteredList();
-  const visibleSet = new Set(visibleAtQueueBuild.map(g => g._idx));
-
-  console.group('[GRUA GEO QUEUE] AUDITORIA grGeocodePending()');
-  console.log('[GRUA GEO QUEUE] CONFIGURACION', {
-    totalDataset: allGruas.length,
-    batchSize: BATCH_SIZE,
-    limiteMaximoPorCiclo: 'NO HAY LIMIT / recorre pending completo',
-    visibleInicial: visibleAtQueueBuild.length,
-    visibleIndices: visibleAtQueueBuild.map(g => g._idx),
-    visibleTargets: visibleAtQueueBuild.filter(isAuditTarget).map(g => ({
-      id:g._idx, direccion:grAddress(g), lat:g.lat, lng:g.lng
-    }))
-  });
-
   try {
+
+    // AUDITORÍA EXCLUSIVA DE LA COLA.
+    // No modifica el criterio de selección ni el tamaño del lote: solamente
+    // registra qué entra, qué queda fuera y cuándo se procesa.
+    const BATCH_SIZE = 4;
+    const AUDIT_TARGETS = new Set([
+      'AGUERO 581',
+      'ANTARTIDA ARGENTINA AV. 1455',
+      'SANTA FE AV. 1146',
+      'BELGRANO 2020',
+      "O'HIGGINS 3321"
+    ]);
+    const normAuditAddress = g => String(grAddress(g) || '')
+      .replace(/\s+/g, ' ').trim().toUpperCase();
+    const isAuditTarget = g => AUDIT_TARGETS.has(normAuditAddress(g));
+    const visibleAtQueueBuild = grFilteredList();
+    const visibleSet = new Set(visibleAtQueueBuild.map(g => g._idx));
+
+    console.group('[GRUA GEO QUEUE] AUDITORIA grGeocodePending()');
+    console.log('[GRUA GEO QUEUE] CONFIGURACION', {
+      totalDataset: allGruas.length,
+      batchSize: BATCH_SIZE,
+      limiteMaximoPorCiclo: 'NO HAY LIMIT / recorre pending completo',
+      visibleInicial: visibleAtQueueBuild.length,
+      visibleIndices: visibleAtQueueBuild.map(g => g._idx),
+      visibleTargets: visibleAtQueueBuild.filter(isAuditTarget).map(g => ({
+        id:g._idx, direccion:grAddress(g), lat:g.lat, lng:g.lng
+      }))
+    });
+
     // Este bloque solamente normaliza el estado pendiente; NO crea coordenadas.
     allGruas.forEach(g => {
       if (grHasValidCoordinates(g)) return;
@@ -11643,6 +11826,7 @@ async function grGeocodePending() {
         visibles:batch.filter(g=>visibleSet.has(g._idx)).map(g=>({id:g._idx,direccion:grAddress(g)}))
       });
 
+      if(records!==allGruas)break;
       await Promise.all(batch.map(async g => {
         try {
           const queries = grGeoQueries(g);
@@ -11659,10 +11843,10 @@ async function grGeocodePending() {
             return;
           }
 
-          const result = await grGeocodeCandidates(g);
+          const result = await grGeocodeCandidates(g,()=>records===allGruas);
+          if(records!==allGruas)return;
           if (result) {
-            g.lat = Number(result.lat);
-            g.lng = Number(result.lng);
+            if(!grHasValidCoordinates(g))geoApply(g,result);
             g._geoError = !grHasValidCoordinates(g);
             g._geoSource = `${result.c1}|${result.c2}`;
             console.log('[GRUA GEO QUEUE] RESULTADO', {
@@ -11687,8 +11871,7 @@ async function grGeocodePending() {
             });
           }
         } catch (e) {
-          g.lat = null;
-          g.lng = null;
+          if(records!==allGruas || grHasValidCoordinates(g))return;
           g._geoError = true;
           g._geoSource = 'exception';
           console.error('[GRUA GEO SKIPPED]', {
@@ -11705,6 +11888,7 @@ async function grGeocodePending() {
 
       processed += batch.length;
       saveGeo();
+      if(records!==allGruas)return;
 
       const geoCount = allGruas.filter(grHasValidCoordinates).length;
       const visibleNow = grFilteredList();
@@ -11730,6 +11914,7 @@ async function grGeocodePending() {
       await new Promise(r => setTimeout(r, 100));
     }
 
+    if(records!==allGruas)return;
     const finalGeo = allGruas.filter(grHasValidCoordinates).length;
     const finalPending = allGruas.filter(g=>!grHasValidCoordinates(g));
     const visibleNotProcessed = visibleAtQueueBuild.filter(g => {
@@ -11765,11 +11950,11 @@ async function grGeocodePending() {
       error:e?.message,
       stack:e?.stack
     });
-    throw e;
   } finally {
     isGrGeocoding = false;
     console.log('[GRUA GEO QUEUE] ESTADO FINAL isGrGeocoding=false');
     console.groupEnd();
+    if(records!==allGruas)grGeocodePending();
   }
 }
 
@@ -12171,14 +12356,6 @@ function updateColMap() {
   colUpdateMapStatus(filtered.length, placed, safetyMode);
 }
 
-// Normaliza una calle para usar como clave de caché
-// Aplica la misma limpieza que geocode() usa internamente antes de enviar al API
-function colNormKey(c1, c2) {
-  const clean = s => (s||'').trim().toUpperCase()
-    .replace(/\bAV\.\s*/gi, '').replace(/[.,]+/g, '').replace(/\s+/g, ' ').trim();
-  return `${clean(c1)}|${clean(c2)}`;
-}
-
 // Construye la consulta de geocodificación para un registro de Colectivos
 function colGeoQuery(c) {
   const c1 = (c.calle1 || '').trim();
@@ -12293,15 +12470,16 @@ function isInsideCABA(lat, lng) {
 
 // Geocodifica usando múltiples estrategias de fallback.
 // Cada resultado se valida con inCABA() — si no cae en CABA, se descarta.
-async function colGeocodeRetry(c) {
+async function colGeocodeRetry(c, current) {
   const c1  = (c.calle1          || '').trim();
   const c2  = (c.calle2          || '').trim();
   const c3  = (c.calle3          || '').trim();
   const geo = (c.geolocalizacion  || '').trim();
+  const requirePrecision=[geoQuery(c1,c2),geoQuery(c1,c3),geoQuery(geo,'')].some(q=>q.a && q.precise);
 
   const tryG = async (a, b) => {
-    if (!a) return null;
-    const r = await geocode(a, b);
+    if (!a || !current()) return null;
+    const r = await geocode(a,b,{verifiedOnly:requirePrecision,allowLegacy:false});
     return r && isInsideCABA(r.lat, r.lng) ? r : null;
   };
 
@@ -12321,96 +12499,70 @@ async function colGeocodeRetry(c) {
 
 // Geocodificación lazy en batches — corre en segundo plano tras el render inicial
 async function colGeocodePending() {
-  if (isColGeocoding) return; isColGeocoding = true;
-
-  // Contadores de cobertura y calidad
-  const tel = { direct: 0, rejectedCSV: 0, cache: 0, rejectedCache: 0, geocoded: 0, retriedOK: 0, failed: 0, noAddress: 0 };
-
-  // Contabilizar coords directas del CSV (ya validadas con inCABA en cargarColectivos)
-  allColectivos.forEach(c => {
-    if (c.lat != null) tel.direct++;
-    else if (c._csvCoordsRejected) tel.rejectedCSV++;
-  });
-
-  // Paso 1: aplicar caché existente a registros sin coords
-  // Se valida inCABA() en cada hit — entradas antiguas sin bbox estricta se descartan y re-geocodifican
-  allColectivos.forEach(c => {
-    if (c.lat != null) return;
-    const { c1, c2 } = colGeoQuery(c);
-    if (!c1) { tel.noAddress++; return; }
-    const k = colNormKey(c1, c2);
-    const hit = geoCache[k];
-    if (hit !== undefined) {
-      if (hit && isInsideCABA(hit.lat, hit.lng)) {
-        c.lat = hit.lat; c.lng = hit.lng; tel.cache++;
-      } else if (hit) {
-        // Entrada de caché con coords fuera de CABA — se elimina para forzar re-geocodificación
-        delete geoCache[k];
+  if(isColGeocoding)return;
+  const records=allColectivos;
+  isColGeocoding=true;
+  try{
+    const tel={direct:0,rejectedCSV:0,cache:0,rejectedCache:0,geocoded:0,retriedOK:0,failed:0,noAddress:0};
+    const pending=[];
+    for(const c of records){
+      if(c.lat!=null){tel.direct++;continue;}
+      if(c._csvCoordsRejected)tel.rejectedCSV++;
+      const {c1,c2}=colGeoQuery(c);
+      if(!c1 && !String(c.geolocalizacion||'').trim()){tel.noAddress++;continue;}
+      const query=geoQuery(c1,c2);
+      const cached=geoCache[query.key];
+      if(cached && !isInsideCABA(cached.lat,cached.lng)){
+        delete geoCache[query.key];
+        geoCacheDirty=true;
         tel.rejectedCache++;
       }
-      // hit === null (fallo anterior): no se aplica, queda como pendiente
+      // Una coordenada legada pudo provenir de un cruce alternativo de otro registro.
+      const coords=geoCachedCoords(query,true,false);
+      if(coords){geoApply(c,coords);tel.cache++;}
+      else pending.push(c);
     }
-  });
-
-  // Render con todo lo que ya tiene coords (propias + caché válida)
-  renderColectivosList();
-
-  // Paso 2: geocodificar los que siguen sin coords usando múltiples estrategias
-  const pending = allColectivos.filter(c => {
-    if (c.lat != null) return false;
-    const { c1, c2 } = colGeoQuery(c);
-    if (!c1) return false;
-    // Incluir también los que tenían caché rechazada (key eliminada arriba)
-    return geoCache[colNormKey(c1, c2)] === undefined;
-  });
-
-  const BATCH = 8;
-  for (let i = 0; i < pending.length; i += BATCH) {
-    const batch = pending.slice(i, i + BATCH);
-    await Promise.all(batch.map(async c => {
-      const { c1, c2 } = colGeoQuery(c);
-      const nk = colNormKey(c1, c2);
-      // Verificar por si fue resuelto en un batch anterior
-      if (geoCache[nk] !== undefined) {
-        if (geoCache[nk] && isInsideCABA(geoCache[nk].lat, geoCache[nk].lng)) {
-          c.lat = geoCache[nk].lat; c.lng = geoCache[nk].lng; tel.cache++;
-        } else tel.failed++;
-        return;
-      }
-      // colGeocodeRetry prueba hasta 5 estrategias de dirección; cada resultado validado con inCABA()
-      const wasRejected = c._csvCoordsRejected;
-      const coords = await colGeocodeRetry(c);
-      geoCache[nk] = coords || null;
-      if (coords) {
-        c.lat = coords.lat; c.lng = coords.lng;
-        if (wasRejected) tel.retriedOK++; else tel.geocoded++;
-      } else tel.failed++;
-    }));
+    renderColectivosList();
+    const BATCH=8;
+    for(let i=0;i<pending.length && records===allColectivos;i+=BATCH){
+      const batch=pending.slice(i,i+BATCH);
+      await Promise.all(batch.map(async c=>{
+        const coords=await colGeocodeRetry(c,()=>records===allColectivos);
+        if(records!==allColectivos)return;
+        if(coords){
+          geoApply(c,coords);
+          if(c._csvCoordsRejected)tel.retriedOK++;else tel.geocoded++;
+        }else tel.failed++;
+      }));
+      if(records!==allColectivos)return;
+      addNewColsToMap(batch);
+    }
+    if(records!==allColectivos)return;
+    // Reporte final — calidad geográfica garantizada (polígono CABA)
+    const unresolved = allColectivos.filter(c => c.lat == null).length;
+    const validCABA  = allColectivos.filter(c => c.lat != null).length;
+    console.log('[Colectivos] Reporte de calidad geográfica:', {
+      total:                allColectivos.length,
+      validCABA,
+      rejectedOutsideCABA:  tel.rejectedCSV + tel.rejectedCache,
+        _rechazadosCSV:     tel.rejectedCSV,
+        _rechazadosCache:   tel.rejectedCache,
+      retriedSuccessfully:  tel.retriedOK,
+      unresolved,
+      // desglose de fuentes
+      directCSV:            tel.direct,
+      desdeCache:           tel.cache,
+      geocodedOK:           tel.geocoded,
+      fallidos:             tel.failed,
+      sinDireccion:         tel.noAddress,
+    });
+  }catch(err){
+    console.warn('[Solicitudes] Se interrumpió la geocodificación.');
+  }finally{
     saveGeo();
-    addNewColsToMap(batch);
-    await new Promise(r => setTimeout(r, 300));
+    isColGeocoding=false;
+    if(records!==allColectivos)colGeocodePending();
   }
-
-  // Reporte final — calidad geográfica garantizada (polígono CABA)
-  const unresolved = allColectivos.filter(c => c.lat == null).length;
-  const validCABA  = allColectivos.filter(c => c.lat != null).length;
-  console.log('[Colectivos] Reporte de calidad geográfica:', {
-    total:                allColectivos.length,
-    validCABA,
-    rejectedOutsideCABA:  tel.rejectedCSV + tel.rejectedCache,
-      _rechazadosCSV:     tel.rejectedCSV,
-      _rechazadosCache:   tel.rejectedCache,
-    retriedSuccessfully:  tel.retriedOK,
-    unresolved,
-    // desglose de fuentes
-    directCSV:            tel.direct,
-    desdeCache:           tel.cache,
-    geocodedOK:           tel.geocoded,
-    fallidos:             tel.failed,
-    sinDireccion:         tel.noAddress,
-  });
-
-  isColGeocoding = false;
 }
 
 async function cargarColectivos() {
@@ -12785,6 +12937,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
 let esquemaMap = null;
 let esquemaMarkers = [];
 let esquemaData = { concentracion:null, cortes:[], desvios:[], personas:'', policia:false };
+let esquemaGeneration=0;
 
 function toggleEsquemaOperativo(force) {
   if (force === false) {
@@ -13213,6 +13366,8 @@ async function generarEsquemaOperativo() {
   const text=input.value.trim();
   if (!text) { status.textContent='Pegá un parte operativo para analizar.'; return; }
   if (!rlGuard('generarEsquemaOperativo',1200)) return;
+  const generation=++esquemaGeneration;
+  const isCurrent=()=>generation===esquemaGeneration;
   initEsquemaMap();
   if (!esquemaMap) { status.textContent='No se pudo inicializar el mapa.'; return; }
   clearEsquemaMarkers();
@@ -13233,10 +13388,10 @@ async function generarEsquemaOperativo() {
   let total=0;
 
   const geocodeLocation=async (item, detail='')=>{
-    if(!item || !item.texto) return false;
+    if(!isCurrent() || !item || !item.texto) return false;
     const loc=esquemaIntersection(item.texto);
     const c=await geocode(loc.c1,loc.c2||null);
-    if(!c) return false;
+    if(!isCurrent() || !c) return false;
     const marker=addEsquemaMarker(
       [c.lat,c.lng],
       item.tipo || 'main',
@@ -13266,11 +13421,13 @@ async function generarEsquemaOperativo() {
     if(evt.sentido) detailParts.push(`Sentido ${evt.sentido}`);
     if(evt.policia) detailParts.push('Policía / agentes en el lugar');
     if(await geocodeLocation(primary,detailParts.join(' · ') || 'Evento operativo')) ok++;
+    if(!isCurrent())return;
 
     for(const d of (evt.desvios||[])){
       total++;
       const item={...d,eventId:evt.id,tipo:'desvio',label:'DESVÍO',rol:'desvio'};
       if(await geocodeLocation(item,`Desvío asociado a ${evt.ubicacion.texto}`)) ok++;
+      if(!isCurrent())return;
     }
   }
 
@@ -13279,7 +13436,10 @@ async function generarEsquemaOperativo() {
   if(!eventos.length){
     const legacy=(esquemaData.ubicaciones||[]);
     total=legacy.length;
-    for(const item of legacy){ if(await geocodeLocation(item,item.tipo||'Afectación operativa')) ok++; }
+    for(const item of legacy){
+      if(await geocodeLocation(item,item.tipo||'Afectación operativa')) ok++;
+      if(!isCurrent())return;
+    }
   }
 
   if(points.length===1) esquemaMap.setView(points[0],15,{animate:true});
@@ -14452,9 +14612,8 @@ function dvEscape(value){return value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 //  PLANNER OPERATIVO v1 — AGENDA DE LECTURA
 //  No guarda seguimientos ni modifica las fuentes.
 // ════════════════════════════════════════════
-let plAllObras = null, plObrasPromise = null, plObrasError='';
-let plGeoCache = new Map(), plGeoWorking=false, plGeoLastDate='';
-let plLastOpen = 0;
+let plAllObras = null, plObrasPromise = null, plObrasError=false;
+let plGeoWorking=false, plGeoWork=null, plGeoRevision=0;
 const plEsc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const plNorm = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase().replace(/\s+/g,' ');
 function plDateKey(value) {
@@ -14469,7 +14628,7 @@ function plDateKey(value) {
 function plToday(){
   const now=new Date();
   const key=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
-  document.getElementById('pl-date').value=key;plRender();plGeocodeVisible(key);
+  document.getElementById('pl-date').value=key;plRender();
 }
 async function plReadObras(){
   if(plObrasPromise)return plObrasPromise;
@@ -14482,7 +14641,6 @@ async function plReadObras(){
       const hi=findHeader(rows,['CALLE','INICIO','FIN','ESTADO','SOLICITANTE']);
       const objs=toObjects(rows,hi>=0?hi:0);
       if(!objs.length)throw new Error('La hoja de Obras no devolvió registros');
-      plObrasError='';
       plAllObras=objs.map(r=>({
         id:r['EXPEDIENTE']||r['RESO']||'', expediente:r['EXPEDIENTE']||'',
         estado:r['ESTADO']||'', tema:r['TEMA']||'', suceso:r['SUCESO']||'',
@@ -14490,31 +14648,34 @@ async function plReadObras(){
         tenor:r['TENOR']||'', inicio:r['INICIO']||'', fin:r['FIN']||'',prorroga:r['PRORROGA']||'',
         solicitante:r['SOLICITANTE']||'',observaciones:r['OBSERVACIONES']||''
       }));
+      plObrasError=false;
     } finally {clearTimeout(timer);plObrasPromise=null;}
   })();
   return plObrasPromise;
 }
 async function plRefresh(force){
-  if(force)plAllObras=null;
   const status=document.getElementById('pl-status');
   if(status)status.textContent='Actualizando fuentes disponibles…';
   const tasks=[];
-  if(plAllObras===null)tasks.push(plReadObras().catch(e=>{plObrasError=e.message;console.warn('[Planner] Obras:',e);}));
+  if(force||plAllObras===null)tasks.push(plReadObras().catch(()=>{
+    plObrasError=true;
+    console.warn('[Planner] Falló la lectura de Obras.');
+  }));
   // Se reutilizan las mismas funciones existentes. No modificamos sus resultados.
   if(!allSucesos.length&&!allSemaforos.length)tasks.push(Promise.resolve(cargarDatos()).catch(e=>console.warn('[Planner] Operativa:',e)));
   if(!allGruas.length)tasks.push(Promise.resolve(cargarGruas()).catch(e=>console.warn('[Planner] Grúas:',e)));
   if(!allColectivos.length)tasks.push(Promise.resolve(cargarColectivos()).catch(e=>console.warn('[Planner] Solicitudes:',e)));
-  await Promise.allSettled(tasks);
-  plRender();
-  const day=document.getElementById('pl-date')?.value;
-  if(day)plGeocodeVisible(day);
 
+  await Promise.allSettled(tasks);
+  if(force)plGeoRevision++;
+  plRender();
 }
 function plOpen(){
   const input=document.getElementById('pl-date');
+  plGeoRevision++;
   if(!input.value)plToday();
-  plRender();
-  plMapEnsure();
+  else plRender();
+  plMapResize();
   plRefresh(false);
 }
 function plTimeOf(value){const m=String(value||'').match(/(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)(?=\s|$)/);return m?m[1].padStart(2,'0')+':'+m[2]:'';}
@@ -14546,7 +14707,7 @@ function plEvents(date){
   const agenda=[], novedades=[];
   const key=(source,id,ref,from)=>`${source}|${id||plNorm(ref)}|${from||''}`;
   const add=(arr,e)=>arr.push(e);
-  const coords = o => (Number.isFinite(Number(o?.lat)) && Number.isFinite(Number(o?.lng)) && Number(o.lat)!==0 && Number(o.lng)!==0 && Number(o.lat)>-34.8 && Number(o.lat)<-34.4 && Number(o.lng)>-58.7 && Number(o.lng)<-58.2) ? [Number(o.lat),Number(o.lng)] : null;
+  const coords=o=>!o?._geoUnverified && isInsideCABA(Number(o?.lat),Number(o?.lng)) ? [Number(o.lat),Number(o.lng)] : null;
   // Planner: reutilizar solo ubicaciones que ya fueron validadas en Obras.
   // Exigir calle Y entrecalle; un expediente puede abarcar múltiples ubicaciones.
   const plVerifiedWorksByStreet=new Map();
@@ -14560,7 +14721,8 @@ function plEvents(date){
     if(!a||a!==date)return; // Prioridad absoluta: inicio programado en la jornada seleccionada
     if(/RECHAZ|CANCEL|ANUL|BAJA/.test(plNorm(o.estado)))return;
     const addr=[o.calle,o.e1,o.e2].filter(Boolean).join(' · ');
-    add(agenda,{geoStreet:o.calle,geoCross:o.e1,geoOther:o.e2,key:key('obras',o.expediente||i,addr,a),source:'obras',type:plWorkType(o),time:plTimeOf(o.inicio)||'Inicio hoy · Sin horario',title:addr||o.suceso||'Obra programada',desc:[o.tenor,o.tema,o.suceso].filter(Boolean).join(' · '),ref:o.expediente?'Expediente: '+o.expediente:'Sin expediente',sub:`Inicio previsto: ${o.inicio} · Fin/prórroga: ${o.prorroga||o.fin||'Sin dato'}`, tenor:o.tenor, estado:o.estado, location:addr, coords:coords(o)||(
+    const front=JSON.stringify([o.expediente||i,...[o.calle,o.e1,o.e2].map(plNorm)]);
+    add(agenda,{geoStreet:o.calle,geoCross:o.e1,geoOther:o.e2,key:key('obras',front,addr,a),source:'obras',type:plWorkType(o),time:plTimeOf(o.inicio)||'Inicio hoy · Sin horario',title:addr||o.suceso||'Obra programada',desc:[o.tenor,o.tema,o.suceso].filter(Boolean).join(' · '),ref:o.expediente?'Expediente: '+o.expediente:'Sin expediente',sub:`Inicio previsto: ${o.inicio} · Fin/prórroga: ${o.prorroga||o.fin||'Sin dato'}`, tenor:o.tenor, estado:o.estado, location:addr, coords:coords(o)||(
       o.calle&&o.e1?plVerifiedWorksByStreet.get(plNorm(o.calle+'|'+o.e1)):null
     )||null,isNewToday:true});
   });
@@ -14596,7 +14758,18 @@ function plEvents(date){
     }
   }
   agenda.concat(novedades).forEach(e=>{
-    if(!e.coords && e.geoStreet){const k=plNorm([e.geoStreet,e.geoCross].join('|'));if(plGeoCache.has(k))e.coords=plGeoCache.get(k);}
+    if(!e.coords){
+      const calle=String(e.geoStreet||'').trim();
+      const cruce=String(e.geoCross||'').trim();
+      const q=obGeoQuery({calle,entrecalle1:cruce==='-'?'':cruce});
+      const geo=geoQuery(q.c1,q.c2);
+      if(geo.a && geo.precise){
+        const state=plGeoStatus(geo);
+        e.geoStatus=state.status;
+        if(state.coords)e.coords=[state.coords.lat,state.coords.lng];
+        else e.geoQuery={...q,key:geo.key};
+      }else e.geoStatus='unavailable';
+    }
     Object.assign(e,plPriority(e));
   });
   // Las actividades que arrancan hoy siempre arriba, después mayor impacto,
@@ -14607,44 +14780,96 @@ function plEvents(date){
   function unique(items){const seen=new Set();return items.filter(x=>{if(seen.has(x.key))return false;seen.add(x.key);return true;});}
   return {agenda:unique(agenda),novedades:unique(novedades)};
 }
-// Geocodificación acotada de los principales eventos del día, reutilizando geocode() de Supervisor.
-// No se modifican fuentes y solo se utilizan resultados validados dentro de CABA.
-async function plGeocodeVisible(date){
-  if(plGeoWorking||typeof geocode!=='function'||date!==document.getElementById('pl-date')?.value)return;
-  plGeoWorking=true;
-  try{
-    const {agenda,novedades}=plEvents(date);
-    const entries=[...agenda,...novedades].filter(e=>e.geoStreet&&!e.coords).slice(0,15);
-    let done=0;
-    for(const e of entries){
-      if(date!==document.getElementById('pl-date')?.value)break;
-      const k=plNorm([e.geoStreet,e.geoCross].join('|'));
-      if(plGeoCache.has(k))continue;
-      // No geocodificar con una dirección inventada. Reutilizar calles originales.
-      let got=null;
-      const originalStreet=String(e.geoStreet||'').trim();
-      const originalCross=String(e.geoCross||'').trim();
-      const q=typeof obGeoQuery==='function'
-        ?obGeoQuery({calle:originalStreet,entrecalle1:originalCross})
-        :{c1:/^\d+$/.test(originalCross)?originalStreet+' '+originalCross:originalStreet,c2:/^\d+$/.test(originalCross)?'':originalCross};
-      try{got=await geocode(q.c1,q.c2);}catch(err){console.warn('[Planner] Geocodificación:',err);}
-      const lat=Number(got?.lat),lng=Number(got?.lng);
-      const valid=got&&Number.isFinite(lat)&&Number.isFinite(lng)&&lat>-34.75&&lat<-34.52&&lng>-58.55&&lng<-58.33;
-      // Guardar resultados positivos; no persistir errores que puedan ser transitorios.
-      if(valid){plGeoCache.set(k,[lat,lng]);done++;plRender();}
-      await new Promise(resolve=>setTimeout(resolve,250));
-    }
-    if(done)console.info('[Planner] Ubicaciones verificadas:',done);
-  }finally{plGeoWorking=false;}
+
+function plGeoContext(){
+  return [
+    document.getElementById('pl-date').value,document.getElementById('pl-source').value,
+    document.getElementById('pl-priority').value,plNorm(document.getElementById('pl-search').value),
+    plGeoRevision,plAllObras,allObras,allGruas,allSucesos,allCongestiones,allSemaforos,allColectivos
+  ];
 }
+
+function plActive(){
+  return !!document.getElementById('view-planner')?.classList.contains('active');
+}
+
+function plSameContext(left,right){
+  return left.every((value,index)=>value===right[index]);
+}
+
+function plPrepareGeocode(){
+  const context=plGeoContext();
+  if(!plGeoWork || !plSameContext(plGeoWork.context,context)){
+    plGeoWork={context,pending:new Map(),results:new Map(),active:null};
+  }
+}
+
+function plGeoStatus(query){
+  const shared=geoQueryStatus(query,true);
+  if(shared.status==='found')return shared;
+  const local=plGeoWork?.results.get(query.key);
+  if(!local)return shared;
+  if(local.status==='found' || (local.status==='temporary' && local.attempts>=2))return local;
+  return local.retryAt>Date.now() ? local : shared;
+}
+
+function plGeocodeVisible(events){
+  const work=plGeoWork;
+  work.pending.clear();
+  for(const {geoQuery,geoStatus} of events){
+    if(!geoQuery || work.active===geoQuery.key)continue;
+    if(geoStatus==='pending' || geoStatus==='working')work.pending.set(geoQuery.key,geoQuery);
+  }
+  if(work.pending.size && !plGeoWorking)plDrainGeocode();
+}
+
+async function plDrainGeocode(){
+  plGeoWorking=true;
+  let processed=0, savePending=false;
+  try{
+    while(plActive() && plGeoWork.pending.size){
+      const work=plGeoWork;
+      const [key,q]=work.pending.entries().next().value;
+      work.active=key;
+      work.pending.delete(key);
+      let result;
+      try{result=await geocodeResult(q.c1,q.c2,{verifiedOnly:true});}
+      catch(err){result={status:'temporary',retryAt:Date.now()+GEO_RETRY_TTL};console.warn('[Planner] No se pudo completar una geocodificación.');}
+      finally{work.active=null;}
+      if(result.status==='found')savePending=true;
+      processed++;
+      if(savePending && (processed>=4 || !work.pending.size)){saveGeo();savePending=false;}
+      if(!plActive() || work!==plGeoWork)continue;
+      if(plSameContext(work.context,plGeoContext())){
+        const previous=work.results.get(key);
+        const attempts=result.status==='temporary' ? (previous?.attempts||0)+1 : 0;
+        work.results.set(key,{...result,attempts});
+      }else{
+        processed=0;
+        plRender();
+        continue;
+      }
+      if(processed>=4 || !work.pending.size){
+        processed=0;
+        plRender();
+      }
+    }
+  }catch(err){
+    console.warn('[Planner] Se interrumpió la cola de geocodificación.');
+  }finally{
+    if(savePending)saveGeo();
+    plGeoWorking=false;
+  }
+}
+
 function plRender(){
-  const root=document.getElementById('view-planner');if(!root||!root.classList.contains('active'))return;
+  if(!plActive())return;
+  plPrepareGeocode();
   const date=document.getElementById('pl-date').value;
-  if(!date)return;
   const source=document.getElementById('pl-source').value;
   const query=plNorm(document.getElementById('pl-search').value);
   const priority=document.getElementById('pl-priority').value;
-  const events=plEvents(date);
+  const events=date?plEvents(date):{agenda:[],novedades:[]};
   const filter=arr=>arr.filter(e=>(source==='all'||e.source===source)&&(priority==='all'||e.level===priority)&&(!query||plNorm([e.title,e.desc,e.ref,e.sub].join(' ')).includes(query)));
   const agenda=filter(events.agenda),news=filter(events.novedades);
   document.getElementById('pl-agenda-count').textContent=String(agenda.length);
@@ -14654,9 +14879,18 @@ function plRender(){
   const html=(arr,cls)=>arr.length?arr.map((e,i)=>`<article class="pl-item ${cls}" ${e.coords?'onclick="plFocus('+plEsc(e.coords[0])+','+plEsc(e.coords[1])+')" style="cursor:pointer"':''}><div class="pl-item-top"><span class="pl-tag">${plEsc(e.type)}</span><span class="pl-time">${plEsc(e.time)}</span></div><div class="pl-priority ${e.level}">${{critical:'● CRÍTICA',high:'● ALTA',medium:'● MEDIA',info:'● INFORMATIVA'}[e.level]} · ${plEsc(e.reason)}</div><h4>${plEsc(e.title)}</h4><p>${plEsc(e.desc)}</p><p class="pl-ref">${plEsc(e.ref)}${e.coords?' · 📍 Mapeado':' · Ubicación no verificada'}</p>${e.sub?`<p class="pl-ref">${plEsc(e.sub)}</p>`:''}</article>`).join(''):'<div class="pl-empty">No se encontraron registros para esta fecha y filtros.<br>Esto no garantiza que no existan actuaciones pendientes.</div>';
   document.getElementById('pl-agenda').innerHTML=html(agenda,'programada');
   document.getElementById('pl-news').innerHTML=html(news,'novedad');
-  plMapRender(agenda.concat(news));
+  const visible=agenda.concat(news);
+  plMapRender(visible);
+  plGeocodeVisible(visible);
   const status=document.getElementById('pl-status');
-  status.textContent=`${plAllObras===null?'Obras: sin lectura'+(plObrasError?' ('+plObrasError+')':'')+' · ':'Obras: '+plAllObras.length+' registros fuente (filtrado por inicio) · '}Grúas: ${typeof allGruas!=='undefined'?allGruas.length:0} · Sucesos: ${typeof allSucesos!=='undefined'?allSucesos.length:0} · Solicitudes: ${typeof allColectivos!=='undefined'?allColectivos.length:0} · Vista de solo lectura`;
+  const count=plAllObras?.length;
+  const previous=count==null?'':' · '+count+(count===1?' registro':' registros')+' de la última carga';
+  const obrasStatus=plObrasPromise
+    ? 'Obras: actualizando'+previous
+    : plObrasError
+      ? 'Obras: falló la actualización'+(previous||' · sin datos anteriores')
+      : count==null?'Obras: sin lectura':'Obras: '+count+' registros fuente (filtrado por inicio)';
+  status.textContent=`${obrasStatus} · Grúas: ${typeof allGruas!=='undefined'?allGruas.length:0} · Sucesos: ${typeof allSucesos!=='undefined'?allSucesos.length:0} · Solicitudes: ${typeof allColectivos!=='undefined'?allColectivos.length:0} · Vista de solo lectura`;
 }
 // Refresca el tablero mientras esté abierto, reutilizando los datos existentes.
 setInterval(()=>{if(document.getElementById('view-planner')?.classList.contains('active'))plRender();},15000);
