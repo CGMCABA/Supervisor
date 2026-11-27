@@ -52,10 +52,18 @@
   crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 // Mapa Leaflet propio del Planner, independiente de mapas de otros módulos.
-
 let plMap=null,plMapGroup=null,plMapFrame=null;
 let plMapResizeBound=false,plMapBaseReady=false,plMapBaseRetryAt=0;
 const plMapMarkers=new Map();
+
+function uiIcon(name, withLabel = false) {
+  if (typeof name !== 'string' || !/^[a-z-]+$/.test(name)) return '';
+  return `<svg class="ui-icon${withLabel ? ' ui-icon--label' : ''}" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-${name}"/></svg>`;
+}
+function uiSetIconLabel(element, name, label = '') {
+  element.innerHTML = uiIcon(name, Boolean(label));
+  if (label) element.append(label);
+}
 
 function plMapResize(){
   if(plMapFrame!==null)return;
@@ -2366,8 +2374,8 @@ body.theme-light #breadcrumb-bar {border-color:rgba(202,138,4,.25);}
 body.theme-light #header {background:linear-gradient(90deg,#152731,#1C3946);}
 body.theme-blue #header {background:linear-gradient(90deg,#09172A,#0B2438);}
 
-/* Tablet: preserve both navigation access and clock without overlays. */
-@media (max-width:1220px) {
+/* Pasar la navegación a dos filas antes de recortar los controles de cabecera. */
+@media (max-width:1360px) {
   #header {
     height:96px;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:51px 40px;
     column-gap:10px;row-gap:0;padding:0 12px;
@@ -5667,8 +5675,100 @@ body.theme-light #view-radar #sup287-focus-results button:hover,body.theme-light
 body.theme-light #view-radar #sup287-focus-results button b{color:#95600f}
 @media(max-width:760px){#view-radar .sup287-focusbar{gap:7px;padding:8px}#view-radar .sup287-lookup{max-width:none}#view-radar #sup287-focus-status{flex-basis:100%}#view-radar .sup287-mode-label{flex:1;min-width:140px}#view-radar .sup287-mode-label select{max-width:none;width:100%}#view-radar #sup287-plan-point{white-space:normal}}
 </style>
+<style id="supervisor-ui-icon-style">
+  .ui-icon-library { position:absolute; inline-size:0; block-size:0; overflow:hidden; pointer-events:none; }
+  .ui-icon { display:inline-block; inline-size:var(--ui-icon-size,clamp(12px,1.15em,16px)); block-size:var(--ui-icon-size,clamp(12px,1.15em,16px)); flex:none; vertical-align:-.16em; fill:none; stroke:currentColor; stroke-width:1.85; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
+  .ui-icon--label { margin-inline-end:.34em; }
+  :where(.tab-btn,.analysis-menu-item,#sup28-tab-home,#sup28-tab-radar) > .ui-icon { --ui-icon-size:16px; }
+  :is(.dc22-symbol,.analysis-view-title) > .ui-icon { --ui-icon-size:18px; }
+  :is(.op-group-icon,.dv2-panel-icon,.sup282-pin,.gr-marker) > .ui-icon { --ui-icon-size:15px; }
+  .op-sem-cob > .ui-icon, .analysis-caret > .ui-icon { --ui-icon-size:10px; }
+  .filter-pill button.pill-x, #af-close { border:0; padding:0; background:none; }
+  #af-close { color:inherit; cursor:pointer; }
+  .filter-pill .ui-icon--label { margin-inline-end:0; }
+  .filter-pill .pill-x .ui-icon { --ui-icon-size:10px; }
+  .esq-summary-line .ui-icon--cut { color:var(--red); }
+  .esq-summary-line .ui-icon--detour { color:var(--amber); }
+  .sup286-group-count .ui-icon { transition:transform .15s ease; }
+  .sup286-group[open] > summary .sup286-group-count .ui-icon { transform:rotate(180deg); }
+</style>
 </head>
 <body class="dc24-compact">
+<svg class="ui-icon-library" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" focusable="false">
+  <symbol id="ui-monitor" viewBox="0 0 24 24"><path d="M3 4h18v12H3z M8 20h8m-4-4v4 M6 11h3l2-4 2 6 2-3h3"/></symbol>
+  <symbol id="ui-calendar" viewBox="0 0 24 24"><path d="M3 5h18v16H3z M7 3v4m10-4v4M3 10h18m-13 5h2m4 0h2m-8 3h2"/></symbol>
+  <symbol id="ui-planner" viewBox="0 0 24 24"><path d="M8 21H4V5h16v6 M8 3v4m8-4v4M4 10h16 M20 16c0 2-3 5-4 6-1-1-4-4-4-6a4 4 0 1 1 8 0Zm-4 0h.01"/></symbol>
+  <symbol id="ui-barrier" viewBox="0 0 24 24"><path d="M3 8h18v8H3z M6 16v5m12-5v5M3 14l6-6m1 8 8-8m-1 8 4-4"/></symbol>
+  <symbol id="ui-detour" viewBox="0 0 24 24"><path d="M4 20v-4a4 4 0 0 1 4-4h8a4 4 0 0 0 4-4V4m-3 3 3-3 3 3m-15 5h1a4 4 0 0 0 4-4V4m-3 3 3-3 3 3"/></symbol>
+  <symbol id="ui-clipboard" viewBox="0 0 24 24"><path d="M8 5H5v16h14V5h-3 M8 3h8v5H8z M8 12h8m-8 4h6"/></symbol>
+  <symbol id="ui-tow" viewBox="0 0 24 24"><path d="M3 17v-4h5l2-4h4v8m0-3h7v3H3 M6 17v3m12-3v3 M14 12l5-8h2v6m0 0a1.5 1.5 0 1 0 1.5 1.5"/></symbol>
+  <symbol id="ui-chart" viewBox="0 0 24 24"><path d="M3 3v18h18 M7 17v-4m5 4V7m5 10v-7"/></symbol>
+  <symbol id="ui-dashboard" viewBox="0 0 24 24"><path d="M3 4h18v16H3z M3 9h18m-10 0v11m3-4 2-3 2 1"/></symbol>
+  <symbol id="ui-radar" viewBox="0 0 24 24"><path d="M20 7a9 9 0 1 1-3-3 M17 10a5 5 0 1 1-3-3m-2 5 8-8m-8 8h.01"/></symbol>
+  <symbol id="ui-route" viewBox="0 0 24 24"><path d="M7 7h8a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h8 M7 7a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"/></symbol>
+  <symbol id="ui-document" viewBox="0 0 24 24"><path d="M5 3h9l5 5v13H5z M14 3v5h5M8 12h8m-8 4h6"/></symbol>
+  <symbol id="ui-traffic" viewBox="0 0 24 24"><path d="M3 9l2-4h14l2 4v8H3z M3 9h18M5 17v3m14-3v3M7 13h1m8 0h1"/></symbol>
+  <symbol id="ui-diagnostic" viewBox="0 0 24 24"><path d="M12 8a5 5 0 1 1-10 0 5 5 0 0 1 10 0Zm-1 4 4 4m1-8h2a3 3 0 0 1 0 6h-1m-1 2 2 2h3M5 8h4"/></symbol>
+  <symbol id="ui-search" viewBox="0 0 24 24"><path d="M16 10a6 6 0 1 1-12 0 6 6 0 0 1 12 0Zm-1.5 4.5L21 21"/></symbol>
+  <symbol id="ui-filter" viewBox="0 0 24 24"><path d="M3 5h18M6 12h12m-8 7h4 M8 3v4m8 3v4m-4 3v4"/></symbol>
+  <symbol id="ui-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 0 0-14-2L3 9m0-5v5h5 M4 16a8 8 0 0 0 14 2l3-3m0 5v-5h-5"/></symbol>
+  <symbol id="ui-expand" viewBox="0 0 24 24"><path d="M9 4H4v5m11-5h5v5m0 6v5h-5m-6 0H4v-5"/></symbol>
+  <symbol id="ui-collapse" viewBox="0 0 24 24"><path d="M4 9h5V4m11 5h-5V4m0 16v-5h5m-16 0h5v5"/></symbol>
+  <symbol id="ui-target" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-5 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM12 2v2m0 16v2m10-10h-2M4 12H2"/></symbol>
+  <symbol id="ui-pin" viewBox="0 0 24 24"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Zm-4.5 0a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z"/></symbol>
+  <symbol id="ui-layers" viewBox="0 0 24 24"><path d="m3 8 9-5 9 5-9 5-9-5Zm0 4 9 5 9-5M3 16l9 5 9-5"/></symbol>
+  <symbol id="ui-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="ui-info" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 11v5m0-8h.01"/></symbol>
+  <symbol id="ui-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="ui-more" viewBox="0 0 24 24"><path d="M5 12h.01m6.99 0h.01m6.99 0h.01" stroke-width="3"/></symbol>
+  <symbol id="ui-sun" viewBox="0 0 24 24"><path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2m0-14-2 2M7 17l-2 2"/></symbol>
+  <symbol id="ui-moon" viewBox="0 0 24 24"><path d="M21 13A9 9 0 0 1 11 3a9 9 0 1 0 10 10Z"/></symbol>
+  <symbol id="ui-back" viewBox="0 0 24 24"><path d="m10 5-7 7 7 7m-7-7h18"/></symbol>
+  <symbol id="ui-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+  <symbol id="ui-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="ui-down" viewBox="0 0 24 24"><path d="m5 9 7 7 7-7"/></symbol>
+  <symbol id="ui-clock" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-5v5l3 2"/></symbol>
+  <symbol id="ui-timer" viewBox="0 0 24 24"><path d="M20 13a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM10 2h4m-2 0v3m0 4v4l2 2m3-8 2-2"/></symbol>
+  <symbol id="ui-warning" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Zm0 6v4m0 3h.01"/></symbol>
+  <symbol id="ui-emergency" viewBox="0 0 24 24"><path d="M5 17v-5a7 7 0 1 1 14 0v5M3 17h18v4H3z M12 9a3 3 0 0 0-3 3m3-10V1M3 5l2 2m14 0 2-2"/></symbol>
+  <symbol id="ui-incident" viewBox="0 0 24 24"><path d="M3 12h4l2-6 4 12 2-6h6"/></symbol>
+  <symbol id="ui-crash" viewBox="0 0 24 24"><path d="M3 14h7v5H3z M4 14l2-4h4m-5 9v2m11-2v2m-2-2h7v-5h-7m2 0-2-4h4m-6-3-1-3m4 3 2-3m-7 5L8 8"/></symbol>
+  <symbol id="ui-event" viewBox="0 0 24 24"><path d="M4 6h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4V6Zm9 1v2m0 2v2m0 2v2"/></symbol>
+  <symbol id="ui-people" viewBox="0 0 24 24"><path d="M16 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2m19 0v-2a4 4 0 0 0-3-4m-3-10a4 4 0 0 1 0 8m-2-4a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/></symbol>
+  <symbol id="ui-cut" viewBox="0 0 24 24"><path d="M3 6v12m18-12v12M3 12h18 M9 9l6 6m0-6-6 6"/></symbol>
+  <symbol id="ui-ban" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM6 6l12 12"/></symbol>
+  <symbol id="ui-signal" viewBox="0 0 24 24"><path d="M8 3h8a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm4 4h.01m0 5h.01m0 4h.01m0 4v2"/></symbol>
+  <symbol id="ui-power" viewBox="0 0 24 24"><path d="M12 2v10M5.5 6.5a9 9 0 1 0 13 0"/></symbol>
+  <symbol id="ui-program" viewBox="0 0 24 24"><path d="M3 5h18v15H3z M3 9h18M8 3v4m8-4v4m-7 7h2l1-2 2 4 1-2h2"/></symbol>
+  <symbol id="ui-coverage" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-4 8-8 10-4-2-8-5-8-10V6l8-3Zm-4 9 3 3 5-6"/></symbol>
+  <symbol id="ui-uncovered" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-4 8-8 10-4-2-8-5-8-10V6l8-3Zm-3 6 6 6m0-6-6 6"/></symbol>
+  <symbol id="ui-evidence" viewBox="0 0 24 24"><path d="M4 5h10l4 4v5M4 5v15h8m2-15v4h4M7 10h3m-3 4h3m9 6 3 2m-2-5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></symbol>
+  <symbol id="ui-zone" viewBox="0 0 24 24"><path d="m12 3 9 5v8l-9 5-9-5V8l9-5Zm0 5v8m-4-4h8"/></symbol>
+  <symbol id="ui-map" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Zm6-2v16m6-14v16"/></symbol>
+  <symbol id="ui-bus" viewBox="0 0 24 24"><path d="M4 6q0-3 8-3t8 3v12H4z M4 11h16m-12 3h.01m8 0h.01M7 18v3m10-3v3"/></symbol>
+  <symbol id="ui-train" viewBox="0 0 24 24"><path d="M6 5q0-2 6-2t6 2v12H6z M6 10h12m-9 4h.01m6 0h.01m-6 3-3 4m9-4 3 4m-10-2h8"/></symbol>
+  <symbol id="ui-building" viewBox="0 0 24 24"><path d="M3 21h18M5 21V5h9v16m0-12h5v12M8 8h3m-3 4h3m-3 4h3"/></symbol>
+  <symbol id="ui-copy" viewBox="0 0 24 24"><path d="M8 8h12v13H8z M16 8V3H3v13h5"/></symbol>
+  <symbol id="ui-eye" viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12Zm13 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></symbol>
+  <symbol id="ui-bolt" viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 10-12h-7z"/></symbol>
+  <symbol id="ui-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="ui-error" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9 9l6 6m0-6-6 6"/></symbol>
+  <symbol id="ui-dot" viewBox="0 0 24 24"><path d="M12 12h.01" stroke-width="6"/></symbol>
+  <symbol id="ui-announce" viewBox="0 0 24 24"><path d="m3 9 6-1 10-5v16L9 15l-6-1V9Zm6 6 2 6H8l-2-7m16-4v3"/></symbol>
+  <symbol id="ui-tool" viewBox="0 0 24 24"><path d="M15 3a5 5 0 0 0-6 6l-6 8a2.1 2.1 0 0 0 3 3l8-7a5 5 0 0 0 6-6l-4 3-3-3 2-4Z"/></symbol>
+  <symbol id="ui-water" viewBox="0 0 24 24"><path d="M2 10c2 0 3-2 5-2s3 2 5 2 3-2 5-2 3 2 5 2M2 15c2 0 3-2 5-2s3 2 5 2 3-2 5-2 3 2 5 2M2 20c2 0 3-2 5-2s3 2 5 2 3-2 5-2 3 2 5 2"/></symbol>
+  <symbol id="ui-tree" viewBox="0 0 24 24"><path d="m12 3 6 7h-3l5 6H4l5-6H6l6-7Zm0 13v5"/></symbol>
+  <symbol id="ui-police" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-4 8-8 10-4-2-8-5-8-10V6l8-3Zm0 5v7m-3-3h6"/></symbol>
+  <symbol id="ui-rescue" viewBox="0 0 24 24"><path d="M3 16v-7h11v7m0-5h4l3 5v2H3v-2m4 2v2m11-2v2M6 6h5m-2-2v4"/></symbol>
+  <symbol id="ui-fog" viewBox="0 0 24 24"><path d="M3 6h14m-9 4h13M3 14h15m-11 4h14"/></symbol>
+  <symbol id="ui-rain" viewBox="0 0 24 24"><path d="M6 14a4 4 0 0 1 0-8 5 5 0 0 1 9-1 4.5 4.5 0 1 1 2 9H6Zm2 3-2 4m7-4-2 4m7-4-2 4"/></symbol>
+  <symbol id="ui-ice" viewBox="0 0 24 24"><path d="M12 3v18M4 7l16 10m0-10L4 17m5-12 3 3 3-3m-6 14 3-3 3 3"/></symbol>
+  <symbol id="ui-wind" viewBox="0 0 24 24"><path d="M3 8h13a2 2 0 1 0-2-2M3 12h17a2 2 0 1 1-2 2M3 16h10a2 2 0 1 1-2 2"/></symbol>
+  <symbol id="ui-road" viewBox="0 0 24 24"><path d="M8 3 3 21m13-18 5 18M12 4v3m0 4v2m0 4v3"/></symbol>
+  <symbol id="ui-box" viewBox="0 0 24 24"><path d="m3 7 9-4 9 4v10l-9 4-9-4V7Zm0 0 9 4 9-4m-9 4v10"/></symbol>
+  <symbol id="ui-external" viewBox="0 0 24 24"><path d="M14 3h7v7m0-7-9 9m7 1v8H3V5h8"/></symbol>
+  <symbol id="ui-collapse-building" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 7 6v12m-7-18-2 7 5 2-4 4 3 5"/></symbol>
+</svg>
 <div id="app">
 
 <!-- ════ HEADER ════ -->
@@ -5686,24 +5786,24 @@ body.theme-light #view-radar #sup287-focus-results button b{color:#95600f}
   <span class="h-brand-copy"><strong>SUPERVISOR <em>CABA</em></strong><small>Centro de Control</small></span>
 </div>
   <div class="h-tabs">
-    <button id="sup28-header-home" class="tab-btn active" onclick="switchTab('home',this)">📡 Análisis Operativo</button>
-    <button class="tab-btn" onclick="switchTab('planner',this)">📅 Planner</button>
-    <button class="tab-btn" onclick="switchTab('obras',this)">🚧 Obras</button>
-    <button class="tab-btn" onclick="switchTab('desvios',this)">🚌 Desvíos</button>
-    <button class="tab-btn" onclick="switchTab('colectivos',this)">📋 Solicitudes</button>
-    <button class="tab-btn" onclick="switchTab('gruas',this)">🏗️ Grúas</button>
+    <button id="sup28-header-home" class="tab-btn active" onclick="switchTab('home',this)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-monitor"/></svg>Análisis Operativo</button>
+    <button class="tab-btn" onclick="switchTab('planner',this)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-planner"/></svg>Planner</button>
+    <button class="tab-btn" onclick="switchTab('obras',this)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-barrier"/></svg>Obras</button>
+    <button class="tab-btn" onclick="switchTab('desvios',this)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-detour"/></svg>Desvíos</button>
+    <button class="tab-btn" onclick="switchTab('colectivos',this)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-clipboard"/></svg>Solicitudes</button>
+    <button class="tab-btn" onclick="switchTab('gruas',this)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-tow"/></svg>Grúas</button>
     <div class="analysis-nav">
-      <button id="analysis-nav-btn" class="tab-btn" onclick="toggleAnalysisMenu(event)">📊 Análisis <span class="analysis-caret">▼</span></button>
+      <button id="analysis-nav-btn" class="tab-btn" aria-controls="analysis-menu" aria-expanded="false" onclick="toggleAnalysisMenu(event)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-chart"/></svg>Análisis <span class="analysis-caret"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-down"/></svg></span></button>
       <div id="analysis-menu" class="analysis-menu" role="menu">
-        <button class="analysis-menu-item active" data-analysis-view="dashboard" onclick="switchAnalysisView('dashboard')">📈 Dashboard Analítico</button>
-        <button class="analysis-menu-item" data-analysis-view="resumen" onclick="switchAnalysisView('resumen')">📋 Resumen Operativo</button>
-        <button class="analysis-menu-item" data-analysis-view="esquema" onclick="switchAnalysisView('esquema')">🚩 Esquema Operativo</button>
-        <button class="analysis-menu-item" data-analysis-view="congestion-medida" onclick="switchAnalysisView('congestion-medida')">🚗 Congestión medida</button>
+        <button class="analysis-menu-item active" data-analysis-view="dashboard" onclick="switchAnalysisView('dashboard')"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-dashboard"/></svg>Dashboard Analítico</button>
+        <button class="analysis-menu-item" data-analysis-view="resumen" onclick="switchAnalysisView('resumen')"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-document"/></svg>Resumen Operativo</button>
+        <button class="analysis-menu-item" data-analysis-view="esquema" onclick="switchAnalysisView('esquema')"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-route"/></svg>Esquema Operativo</button>
+        <button class="analysis-menu-item" data-analysis-view="congestion-medida" onclick="switchAnalysisView('congestion-medida')"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-traffic"/></svg>Congestión medida</button>
       </div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <button type="button" id="sup28-search-launch" title="Buscador universal (Ctrl+K)" aria-haspopup="dialog" aria-controls="sup28-search-overlay">⌕ <small>Buscar · Ctrl+K</small></button>
+  <div class="h-actions" style="display:flex;align-items:center;gap:10px">
+    <button type="button" id="sup28-search-launch" aria-label="Buscar en todas las fuentes" title="Buscador universal (Ctrl+K)" aria-haspopup="dialog" aria-controls="sup28-search-overlay"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-search"/></svg> <small>Buscar · Ctrl+K</small></button>
     <div id="live-pulse">
       <div id="live-ring"></div>
       <span id="live-label">EN VIVO</span>
@@ -5712,7 +5812,7 @@ body.theme-light #view-radar #sup287-focus-results button b{color:#95600f}
     <div class="h-sep"></div>
     <div id="clock"></div>
     <!-- ··· overflow menu -->
-    <button id="h-menu-btn" onclick="toggleHMenu()" title="Estado y configuración">···</button>
+    <button id="h-menu-btn" onclick="toggleHMenu()" aria-label="Estado y configuración" title="Estado y configuración"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-more"/></svg></button>
   </div>
 </div>
 
@@ -5728,21 +5828,21 @@ body.theme-light #view-radar #sup287-focus-results button b{color:#95600f}
   </div>
   <div class="h-menu-sep"></div>
   <div class="h-menu-row dc26-theme-row" title="Tema de la interfaz; no modifica el estilo de los mapas.">
-<span>Interfaz</span><div class="dc26-theme-options" role="group" aria-label="Tema de la interfaz"><button type="button" id="dc26-dark" aria-pressed="true">Oscuro</button><button type="button" id="dc26-light" aria-pressed="false">Claro</button></div>
+<span>Interfaz</span><div class="dc26-theme-options" role="group" aria-label="Tema de la interfaz"><button type="button" id="dc26-dark" aria-pressed="true"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-moon"/></svg>Oscuro</button><button type="button" id="dc26-light" aria-pressed="false"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-sun"/></svg>Claro</button></div>
 </div>
   <div class="h-menu-sep"></div>
   <div class="dc24-density-row">
     <div class="dc24-density-caption"><strong>Densidad de interfaz</strong><small>Vista de escritorio</small></div>
     <button id="dc24-density-toggle" type="button" aria-label="Cambiar densidad de interfaz" aria-pressed="true" title="Alternar entre compacta y normal">Compacta</button>
   </div>
-  <details id="sup28-health-details"><summary>Diagnóstico técnico · Fuentes</summary>
+  <details id="sup28-health-details"><summary><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-info"/></svg>Diagnóstico técnico · Fuentes</summary>
     <div id="sup28-health-content" class="sup28-health-content">Abrí para consultar el estado de las fuentes y la cobertura de geocodificación.</div>
   </details>
 </div>
 
 <!-- ════ BREADCRUMB ════ -->
 <div id="breadcrumb-bar">
-  <span class="bc-em" id="bc-tab">📡 Vista Operativa</span>
+  <span class="bc-em" id="bc-tab"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-monitor"/></svg>Vista Operativa</span>
   <span class="bc-sep" id="bc-sep1" style="display:none">·</span>
   <span class="bc-hi"  id="bc-ctx1" style="display:none"></span>
   <span class="bc-sep" id="bc-sep2" style="display:none">·</span>
@@ -5753,8 +5853,8 @@ body.theme-light #view-radar #sup287-focus-results button b{color:#95600f}
 
 <!-- SUPERVISOR 2.8 · Subvistas exclusivas de Análisis Operativo -->
 <nav id="sup28-op-tabs" aria-label="Subvistas de Análisis Operativo" role="tablist">
-  <button id="sup28-tab-home" type="button" role="tab" aria-controls="view-home" aria-selected="true" onclick="sup28Switch('home')">◉ Vista operativa</button>
-  <button id="sup28-tab-radar" type="button" role="tab" aria-controls="view-radar" aria-selected="false" onclick="sup28Switch('radar')">◎ Radar operativo <span id="sup28-radar-badge" class="sup28-tab-count"></span></button>
+  <button id="sup28-tab-home" type="button" role="tab" aria-controls="view-home" aria-selected="true" onclick="sup28Switch('home')"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-monitor"/></svg>Vista operativa</button>
+  <button id="sup28-tab-radar" type="button" role="tab" aria-controls="view-radar" aria-selected="false" onclick="sup28Switch('radar')"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-radar"/></svg>Radar operativo <span id="sup28-radar-badge" class="sup28-tab-count"></span></button>
   <span class="sup28-tab-info">Seleccioná una zona para ver casos y conexiones · Solo lectura</span>
 </nav>
 
@@ -5773,27 +5873,27 @@ body.theme-light #view-radar #sup287-focus-results button b{color:#95600f}
 
   <div id="op-statsbar">
     <div class="op-s-item">
-      <span class="op-s-label">Sucesos</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-incident"/></svg>Sucesos</span>
       <span class="op-s-val" id="ops-suc" style="color:var(--gold)">0</span>
     </div>
     <div class="op-s-sep"></div>
     <div class="op-s-item">
-      <span class="op-s-label">Alta</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-warning"/></svg>Alta</span>
       <span class="op-s-val" id="ops-alta" style="color:var(--red)">0</span>
     </div>
     <div class="op-s-sep"></div>
     <div class="op-s-item">
-      <span class="op-s-label">Semáforos</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-signal"/></svg>Semáforos</span>
       <span class="op-s-val" id="ops-sem" style="color:var(--amber)">0</span>
     </div>
     <div class="op-s-sep"></div>
     <div class="op-s-item">
-      <span class="op-s-label">Sin cobertura</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-uncovered"/></svg>Sin cobertura</span>
       <span class="op-s-val" id="ops-sc" style="color:var(--red)">0</span>
     </div>
     <div class="op-s-sep"></div>
     <div class="op-s-item">
-      <span class="op-s-label">Apagados</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-power"/></svg>Apagados</span>
       <span class="op-s-val" id="ops-ap" style="color:var(--text2)">0</span>
     </div>
     <div class="op-s-sep"></div>
@@ -5801,7 +5901,7 @@ body.theme-light #view-radar #sup287-focus-results button b{color:#95600f}
     <div class="op-s-item" style="margin-left:auto">
       <button id="op-cong-btn" onclick="toggleOpCongestion()"
         style="padding:3px 11px;border-radius:4px;border:1px solid rgba(249,115,22,0.35);background:transparent;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans);transition:all 0.15s;letter-spacing:0.3px">
-        🚗 Congestión
+        <svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-traffic"/></svg>Congestión
       </button>
     </div>
   </div>
@@ -5826,7 +5926,7 @@ body.theme-light #view-radar #sup287-focus-results button b{color:#95600f}
       <div class="op-map-shade"></div>
       <button id="op21-focus-btn" class="op21-focus-btn" type="button" onclick="op21ToggleFocus()"
         aria-label="Ampliar el mapa operativo" aria-pressed="false" title="Ocultar paneles y ampliar el mapa (Esc para volver)">
-        <span class="op21-focus-icon" aria-hidden="true">⛶</span><span id="op21-focus-label">Ampliar mapa</span>
+        <span class="op21-focus-icon" aria-hidden="true"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-expand"/></svg></span><span id="op21-focus-label">Ampliar mapa</span>
       </button>
       <div class="op-map-counter">
         <span style="color:var(--text3);font-size:9px;text-transform:uppercase;letter-spacing:0.8px">En mapa</span>
@@ -5864,7 +5964,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
     <div class="sup28-controls">
       <label>RADIO DE ANÁLISIS<select id="sup28-radius" title="Radio automático 500–750 m según evidencia y superposición. Podés fijarlo manualmente."><option value="auto" selected>Auto · 500–750 m</option><option value="500">Fijo · 500 metros</option><option value="625">Fijo · 625 metros</option><option value="750">Fijo · 750 metros</option></select></label>
       <label>PRIORIZACIÓN<select id="sup28-level-filter"><option value="all">Todas las alertas</option><option value="high">Críticas y altas</option><option value="critical">Solo críticas</option></select></label>
-      <button type="button" id="sup28-radar-refresh" title="Recalcular con la última información disponible">↻ Recalcular</button>
+      <button type="button" id="sup28-radar-refresh" title="Recalcular con la última información disponible"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-refresh"/></svg>Recalcular</button>
     </div>
   </div>
   <div class="sup287-focusbar" aria-label="Herramientas de enfoque inteligente">
@@ -5883,38 +5983,38 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
     </label>
     <div class="sup287-lookup">
       <label for="sup287-focus-query">FOCO PUNTUAL · GRÚA, OBRA, INCIDENTE O SOLICITUD</label>
-      <div class="sup287-queryrow"><input type="search" id="sup287-focus-query" autocomplete="off" placeholder="Buscar una grúa, obra, calle, ID…" aria-controls="sup287-focus-results" aria-expanded="false"/><button id="sup287-clear-focus" type="button" title="Quitar enfoque">Limpiar foco</button></div>
+      <div class="sup287-queryrow"><input type="search" id="sup287-focus-query" autocomplete="off" placeholder="Buscar una grúa, obra, calle, ID…" aria-controls="sup287-focus-results" aria-expanded="false"/><button id="sup287-clear-focus" type="button" title="Quitar enfoque"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"/></svg>Limpiar foco</button></div>
       <div id="sup287-focus-results" role="listbox" aria-label="Elegir elemento de interés" hidden></div>
     </div>
-    <button type="button" id="sup287-plan-point" title="Marcar un punto de análisis en el mapa para un evento aún no registrado">📍 Marcar punto de estudio</button>
+    <button type="button" id="sup287-plan-point" title="Marcar un punto de análisis en el mapa para un evento aún no registrado"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-pin"/></svg>Marcar punto de estudio</button>
     <span id="sup287-focus-status" role="status">Todas las zonas · sin objeto enfocado</span>
   </div>
   <div id="sup28-radar-kpis" aria-label="Indicadores del radar">
     <div class="sup28-kpi"><span>Zonas críticas</span><strong id="sup28-kpi-critical">—</strong><small>Alerta combinada</small></div>
     <div class="sup28-kpi"><span>Alta prioridad</span><strong id="sup28-kpi-high">—</strong><small>Coincidencias destacadas</small></div>
     <div class="sup28-kpi"><span>Registros ubicados</span><strong id="sup28-kpi-points">—</strong><small>Activos, vigentes o programados</small></div>
-    <div class="sup28-kpi"><span>Cobertura geográfica</span><strong id="sup28-kpi-coverage">—</strong><small>Registros elegibles ubicados</small></div>
+    <div class="sup28-kpi"><span><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-coverage"/></svg>Cobertura geográfica</span><strong id="sup28-kpi-coverage">—</strong><small>Registros elegibles ubicados</small></div>
     <div class="sup28-kpi sup281-kpi-requests"><span>Solicitudes abiertas HOY</span><strong id="sup281-kpi-requests">—</strong><small id="sup281-kpi-requests-note">Con coordenadas validadas</small></div>
   </div>
   <div id="sup28-radar-note" role="status">Preparando fuentes…</div>
   <div id="sup28-radar-layout">
     <div id="sup28-radar-list" aria-live="polite"><div class="sup28-empty">Analizando relaciones geográficas…</div></div>
     <div id="sup28-radar-mapwrap"><div id="sup28-radar-map" aria-label="Mapa de zonas de concentración"></div><details id="sup282-layer-controls" open>
-  <summary><span>◉ CAPAS DEL RADAR</span><span id="sup282-layer-mode">VISTA GENERAL</span></summary>
+  <summary><span><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-layers"/></svg>CAPAS DEL RADAR</span><span id="sup282-layer-mode">VISTA GENERAL</span></summary>
   <div class="sup282-layer-grid" role="group" aria-label="Fuentes geográficas visibles">
-    <label><input type="checkbox" data-sup282-layer="sucesos" checked> 🚨 Sucesos <small id="sup282-n-sucesos">0</small></label>
-    <label><input type="checkbox" data-sup282-layer="congestion" checked> 🚗 Congestiones <small id="sup282-n-congestion">0</small></label>
-    <label><input type="checkbox" data-sup282-layer="semaforos" checked> 🚦 Semáforos <small id="sup282-n-semaforos">0</small></label>
-    <label><input type="checkbox" data-sup282-layer="gruas" checked title="Todas las grúas con fecha operativa entre hoy y +7 días, incluidas pendientes. No vigentes solo como contexto."> 🚛 Grúas · 7 días <small id="sup282-n-gruas">0</small></label>
-    <label><input type="checkbox" data-sup282-layer="solicitudes" checked> 📋 Solicitudes hoy <small id="sup282-n-solicitudes">0</small></label>
-    <label><input type="checkbox" data-sup282-layer="obras" checked> 🚧 Obras por zona <small id="sup282-n-obras">0</small></label>
+    <label><input type="checkbox" data-sup282-layer="sucesos" checked> <svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-incident"/></svg>Sucesos <small id="sup282-n-sucesos">0</small></label>
+    <label><input type="checkbox" data-sup282-layer="congestion" checked> <svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-traffic"/></svg>Congestiones <small id="sup282-n-congestion">0</small></label>
+    <label><input type="checkbox" data-sup282-layer="semaforos" checked> <svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-signal"/></svg>Semáforos <small id="sup282-n-semaforos">0</small></label>
+    <label><input type="checkbox" data-sup282-layer="gruas" checked title="Todas las grúas con fecha operativa entre hoy y +7 días, incluidas pendientes. No vigentes solo como contexto."> <svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-tow"/></svg>Grúas · 7 días <small id="sup282-n-gruas">0</small></label>
+    <label><input type="checkbox" data-sup282-layer="solicitudes" checked> <svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-clipboard"/></svg>Solicitudes hoy <small id="sup282-n-solicitudes">0</small></label>
+    <label><input type="checkbox" data-sup282-layer="obras" checked> <svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-barrier"/></svg>Obras por zona <small id="sup282-n-obras">0</small></label>
   </div>
-  <div class="sup283-traffic-panel"><label class="sup283-traffic-toggle"><input type="checkbox" id="sup283-traffic-toggle"> 🌐 Flujo vial TomTom <span>opcional</span></label><div id="sup283-traffic-state" role="status">Tráfico en vivo · solo visual, no puntúa las alertas</div></div>
+  <div class="sup283-traffic-panel"><label class="sup283-traffic-toggle"><input type="checkbox" id="sup283-traffic-toggle"> <svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-traffic"/></svg>Flujo vial TomTom <span>opcional</span></label><div id="sup283-traffic-state" role="status">Tráfico en vivo · solo visual, no puntúa las alertas</div></div>
   <div class="sup282-layer-foot">Congestiones: sucesos registrados en la planilla. TomTom: velocidades viales en vivo, capa opcional sin efecto en el puntaje. Las obras se detallan por zona.</div>
-  <button type="button" id="sup282-reset-view" hidden>↩ Volver a toda CABA</button>
+  <button type="button" id="sup282-reset-view" hidden><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-back"/></svg>Volver a toda CABA</button>
 </details><div id="sup28-radar-map-note" class="sup28-map-caption">MAPA DE ZONAS · CARTO DARK MATTER</div>
       <aside id="sup281-zone-inspector" class="sup281-inspector" aria-label="Evidencias y relaciones de la zona" hidden>
-       <div class="sup281-inspector-header"><div><span>ANÁLISIS DE ZONA SELECCIONADA</span><h3 id="sup281-inspector-title">Zona operativa</h3></div><button type="button" id="sup281-close-inspector" aria-label="Cerrar investigación">×</button></div>
+       <div class="sup281-inspector-header"><div><span>ANÁLISIS DE ZONA SELECCIONADA</span><h3 id="sup281-inspector-title">Zona operativa</h3></div><button type="button" id="sup281-close-inspector" aria-label="Cerrar investigación"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"/></svg></button></div>
        <div id="sup281-inspector-meta" class="sup281-inspector-meta"></div>
        <div id="sup281-inspector-relations" class="sup281-inspector-relations"></div>
        <div class="sup281-inspector-section">EVIDENCIAS INDIVIDUALES <span id="sup281-evidence-count"></span></div>
@@ -5922,7 +6022,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
        <div class="sup281-inspector-footer">Cruce por proximidad geográfica · No implica causalidad ni confirma una afectación no verificada.</div>
       </aside>
       <aside id="sup287-object-inspector" class="sup281-inspector sup287-object-inspector" aria-label="Análisis de objeto seleccionado" hidden>
-       <div class="sup281-inspector-header"><div><span>FOCO DE INVESTIGACIÓN</span><h3 id="sup287-object-title">Objeto seleccionado</h3></div><button id="sup287-close-object" type="button" aria-label="Cerrar foco">×</button></div>
+       <div class="sup281-inspector-header"><div><span>FOCO DE INVESTIGACIÓN</span><h3 id="sup287-object-title">Objeto seleccionado</h3></div><button id="sup287-close-object" type="button" aria-label="Cerrar foco"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"/></svg></button></div>
        <div id="sup287-object-meta" class="sup281-inspector-meta"></div>
        <div class="sup281-inspector-section">REGISTROS PRÓXIMOS <span id="sup287-object-total"></span></div>
        <div id="sup287-object-evidences" class="sup281-inspector-evidences"></div>
@@ -5935,9 +6035,9 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
 
 <!-- Mobile panel toggle (visible only on small screens via CSS) -->
 <div id="mobile-panel-toggle">
-  <button class="mob-toggle-btn active" id="mob-btn-list" onclick="mobToggle('list')">☰ Lista</button>
+  <button class="mob-toggle-btn active" id="mob-btn-list" onclick="mobToggle('list')"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-list"/></svg>Lista</button>
   <div class="mob-toggle-sep"></div>
-  <button class="mob-toggle-btn" id="mob-btn-map" onclick="mobToggle('map')">🗺 Mapa</button>
+  <button class="mob-toggle-btn" id="mob-btn-map" onclick="mobToggle('map')"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-map"/></svg>Mapa</button>
 </div>
 
 <!-- ════ VISTA ANÁLISIS ════ -->
@@ -5945,23 +6045,23 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
 <div id="view-planner" class="view" style="flex-direction:column">
   <div class="pl-head">
     <div><span class="pl-eyebrow">SUPERVISOR CABA / ORGANIZACIÓN DE SALA</span><h2>Planner Operativo <small>CONSULTA · 2.3</small></h2><p>Agenda programada y novedades del día, sin alterar los datos de origen.</p></div>
-    <div class="dc23-head-actions"><span class="dc23-readonly"><span aria-hidden="true">●</span> SOLO LECTURA</span><button class="pl-btn pl-refresh" onclick="plRefresh(true)">↻ Actualizar fuentes</button></div>
+    <div class="dc23-head-actions"><span class="dc23-readonly"><span aria-hidden="true">●</span> SOLO LECTURA</span><button class="pl-btn pl-refresh" onclick="plRefresh(true)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-refresh"/></svg>Actualizar fuentes</button></div>
   </div>
   <div class="pl-controls">
     <label>Jornada <input type="date" id="pl-date" onchange="plRender()"></label>
-    <button class="pl-btn" onclick="plToday()">Hoy</button>
+    <button class="pl-btn" onclick="plToday()"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-calendar"/></svg>Hoy</button>
     <label>Fuente <select id="pl-source" onchange="plRender()"><option value="all">Todas</option><option value="obras">Obras</option><option value="gruas">Grúas</option><option value="operativa">Vista Operativa</option><option value="solicitudes">Solicitudes</option><option value="semaforos">Semáforos</option><option value="desvios">Desvíos planificados</option></select></label>
     <label>Prioridad <select id="pl-priority" onchange="plRender()"><option value="all">Todas</option><option value="critical">Crítica</option><option value="high">Alta</option><option value="medium">Media</option><option value="info">Informativa</option></select></label>
-    <label>Buscar <input type="search" id="pl-search" oninput="plRender()" placeholder="Calle, ID, expediente, tenor..."></label>
+    <label><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-search"/></svg>Buscar <input type="search" id="pl-search" oninput="plRender()" placeholder="Calle, ID, expediente, tenor..."></label>
   </div>
   <div class="pl-summary" id="pl-summary"></div>
   <div class="pl-status" id="pl-status" role="status">Esperando fuentes…</div>
   <div class="pl-columns">
     <div class="pl-worklist">
-    <section class="pl-panel"><div class="pl-section-head"><div><h3>📅 Inician en la jornada</h3><span>Obras, grúas, filmaciones, eventos y otras actividades con inicio previsto</span></div><strong id="pl-agenda-count">0</strong></div><div id="pl-agenda" class="pl-list"></div></section>
-    <section class="pl-panel"><div class="pl-section-head"><div><h3>📡 Novedades y posibles seguimientos</h3><span>Incidentes y solicitudes; todavía no son tareas asignadas</span></div><strong id="pl-news-count">0</strong></div><div id="pl-news" class="pl-list"></div></section>
+    <section class="pl-panel"><div class="pl-section-head"><div><h3><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-calendar"/></svg>Inician en la jornada</h3><span>Obras, grúas, filmaciones, eventos y otras actividades con inicio previsto</span></div><strong id="pl-agenda-count">0</strong></div><div id="pl-agenda" class="pl-list"></div></section>
+    <section class="pl-panel"><div class="pl-section-head"><div><h3><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-incident"/></svg>Novedades y posibles seguimientos</h3><span>Incidentes y solicitudes; todavía no son tareas asignadas</span></div><strong id="pl-news-count">0</strong></div><div id="pl-news" class="pl-list"></div></section>
     </div>
-  <section class="pl-map-panel"><div class="pl-section-head"><div><h3>🗺️ Mapa de la jornada</h3><span>Ubicaciones verificadas · Seleccioná una tarjeta para enfocarla</span></div><div class="dc23-map-head-actions"><strong id="pl-map-count">0</strong><button id="dc23-pl-focus" class="dc23-focus" type="button" aria-pressed="false" title="Ampliar el mapa de Planner (Esc para volver)">⛶ <span>Ampliar</span></button></div></div><div class="dc23-pl-map-stage"><div id="pl-map"></div><div class="dc23-map-legend"><span><i style="background:#ef4444"></i>Crítica</span><span><i style="background:#f97316"></i>Alta</span><span><i style="background:#38bdf8"></i>Media</span><span><i style="background:#a0a0aa"></i>Informativa</span></div></div><div class="dc23-map-base"><span id="pl-map-provider">Mapa base · sin API key</span></div><div id="pl-map-note">Los registros sin coordenadas confiables aparecen en la agenda, pero no se ubican en el mapa.</div></section>
+  <section class="pl-map-panel"><div class="pl-section-head"><div><h3><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-map"/></svg>Mapa de la jornada</h3><span>Ubicaciones verificadas · Seleccioná una tarjeta para enfocarla</span></div><div class="dc23-map-head-actions"><strong id="pl-map-count">0</strong><button id="dc23-pl-focus" class="dc23-focus" type="button" aria-pressed="false" title="Ampliar el mapa de Planner (Esc para volver)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-expand"/></svg><span>Ampliar</span></button></div></div><div class="dc23-pl-map-stage"><div id="pl-map"></div><div class="dc23-map-legend"><span><i style="background:#ef4444"></i>Crítica</span><span><i style="background:#f97316"></i>Alta</span><span><i style="background:#38bdf8"></i>Media</span><span><i style="background:#a0a0aa"></i>Informativa</span></div></div><div class="dc23-map-base"><span id="pl-map-provider">Mapa base · sin API key</span></div><div id="pl-map-note">Los registros sin coordenadas confiables aparecen en la agenda, pero no se ubican en el mapa.</div></section>
   </div>
   <div class="pl-disclaimer">Solo consulta · No administra tareas, no guarda datos ni requiere backend. La prioridad es orientativa y explica sus criterios; no reemplaza la evaluación de sala. Las variantes QGIS son preliminares hasta su validación.</div>
 </div>
@@ -5972,7 +6072,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
   <div id="an-list-wrap">
     <div class="dc23-panel-title"><span class="dc23-eyebrow">SUPERVISOR CABA / INTELIGENCIA OPERATIVA</span><div><h2>Dashboard analítico</h2><span class="dc23-panel-detail">Indicadores, tendencias y criticidad</span></div></div>
     <div id="an-filterbar-inner">
-      <span style="font-size:9px;color:var(--text3);font-weight:500;letter-spacing:0.8px;text-transform:uppercase">Filtrar</span>
+      <span style="font-size:9px;color:var(--text3);font-weight:500;letter-spacing:0.8px;text-transform:uppercase"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-filter"/></svg>Filtrar</span>
       <div class="an-filter-sep"></div>
       <button class="an-fbtn active" onclick="setFiltro('todos',this)">Todos</button>
       <button class="an-fbtn" onclick="setFiltro('alta',this)">Alta</button>
@@ -5981,9 +6081,9 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <div class="an-filter-sep"></div>
       <button class="an-fbtn" onclick="setFiltro('np',this)">Solo NP</button>
       <button class="an-fbtn" onclick="setFiltro('p',this)">Solo P</button>
-      <button class="an-fbtn" onclick="setFiltro('congestion',this)" style="border-color:rgba(249,115,22,0.4);color:var(--amber)">🚗 Congestión</button>
-      <div id="an-alert">⚠ ALTA CRITICIDAD</div>
-      <button id="an-updatedbtn" onclick="cargarDatos()">↺ Actualizar</button>
+      <button class="an-fbtn" onclick="setFiltro('congestion',this)" style="border-color:rgba(249,115,22,0.4);color:var(--amber)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-traffic"/></svg>Congestión</button>
+      <div id="an-alert"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-warning"/></svg>ALTA CRITICIDAD</div>
+      <button id="an-updatedbtn" onclick="cargarDatos()"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-refresh"/></svg>Actualizar</button>
       <span id="an-ts"></span>
     </div>
 
@@ -6006,13 +6106,13 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <div class="an-kpi">
         <div class="an-kpi-accent" style="background:var(--gold)"></div>
         <div class="an-kpi-val" id="kpi-sem" style="color:var(--gold)">—</div>
-        <div class="an-kpi-label">Semáforos Falla</div>
+        <div class="an-kpi-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-signal"/></svg>Semáforos Falla</div>
         <div class="an-kpi-sub" id="kpi-sem-s"></div>
       </div>
       <div class="an-kpi">
         <div class="an-kpi-accent" style="background:var(--blue)"></div>
         <div class="an-kpi-val" id="kpi-apa" style="color:var(--blue)">—</div>
-        <div class="an-kpi-label">Apagados</div>
+        <div class="an-kpi-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-power"/></svg>Apagados</div>
         <div class="an-kpi-sub">sin luz</div>
       </div>
       <div class="an-kpi">
@@ -6088,7 +6188,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
     <!-- Comunas -->
     <div class="an-card span1">
       <div class="an-card-head">
-        <span class="an-card-title">Semáforos por Comuna</span>
+        <span class="an-card-title"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-signal"/></svg>Semáforos por Comuna</span>
         <span class="an-card-count" id="lbl-comunas">—</span>
       </div>
       <div id="chart-comunas"></div>
@@ -6104,12 +6204,12 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
   <div id="an-choro-section">
     <div id="an-map-wrap">
       <div id="an-map"></div>
-      <button class="dc23-dashboard-focus dc23-focus" id="dc23-an-focus" type="button" aria-pressed="false" title="Ampliar el mapa de análisis (Esc para volver)">⛶ <span>Ampliar mapa</span></button>
+      <button class="dc23-dashboard-focus dc23-focus" id="dc23-an-focus" type="button" aria-pressed="false" title="Ampliar el mapa de análisis (Esc para volver)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-expand"/></svg><span>Ampliar mapa</span></button>
       <!-- Botón Ruta A→B flotante sobre el mapa -->
       <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:450">
         <button id="btn-route" onclick="toggleRouteMode()"
           style="padding:5px 14px;border-radius:5px;border:1px solid rgba(56,189,248,0.25);background:rgba(8,8,9,0.85);color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans);backdrop-filter:blur(6px);transition:all 0.15s;white-space:nowrap">
-          📊 Medir traza
+          <svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-route"/></svg>Medir traza
         </button>
       </div>
       <div id="tt-legend">
@@ -6123,7 +6223,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <!-- HUD top-left: Top sucesos críticos -->
       <div class="map-hud" id="hud-tl">
         <div class="hud-card" style="min-width:200px">
-          <div class="hud-card-title">🔴 Sucesos más críticos</div>
+          <div class="hud-card-title"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-warning"/></svg>Sucesos más críticos</div>
           <div id="hud-top-suc"></div>
         </div>
       </div>
@@ -6131,7 +6231,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <!-- HUD top-right: Emergencias y tenor -->
       <div class="map-hud" id="hud-tr">
         <div class="hud-card" style="min-width:148px">
-          <div class="hud-card-title">🚨 Emergencias</div>
+          <div class="hud-card-title"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-emergency"/></svg>Emergencias</div>
           <div class="hud-stat-row">
             <span class="hud-stat-label">Activas</span>
             <span class="hud-stat-val" id="hud-emerg" style="color:var(--red)">—</span>
@@ -6146,7 +6246,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <!-- HUD bottom-left: Semáforos sin resolver -->
       <div class="map-hud" id="hud-bl">
         <div class="hud-card" style="min-width:170px">
-          <div class="hud-card-title">🚦 Más tiempo activos</div>
+          <div class="hud-card-title"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-signal"/></svg>Más tiempo activos</div>
           <div id="hud-sem-old"></div>
         </div>
       </div>
@@ -6154,7 +6254,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <!-- HUD bottom-right: P vs NP + UPS -->
       <div class="map-hud" id="hud-br">
         <div class="hud-card" style="min-width:140px">
-          <div class="hud-card-title">📊 Composición</div>
+          <div class="hud-card-title"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-chart"/></svg>Composición</div>
           <div class="hud-stat-row">
             <span class="hud-stat-label">Programados</span>
             <span class="hud-stat-val" id="hud-p" style="color:var(--blue)">—</span>
@@ -6186,10 +6286,10 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
 <div id="view-congestion-medida" class="view analysis-subview">
   <div class="analysis-view-head">
     <div>
-      <div class="analysis-view-title">Congestión medida</div>
+      <div class="analysis-view-title"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-traffic"/></svg>Congestión medida</div>
       <div class="analysis-view-sub">Caballito · Relevamiento histórico de Waze Traffic View</div>
     </div>
-    <button type="button" class="analysis-back-btn" onclick="switchAnalysisView('dashboard')">← Dashboard</button>
+    <button type="button" class="analysis-back-btn" onclick="switchAnalysisView('dashboard')"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-back"/></svg>Dashboard</button>
   </div>
   <div class="analysis-view-body">
     <div class="cm-controls">
@@ -6202,7 +6302,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       </select></label>
       <div class="cm-timebar">
         <div class="cm-time-caption">
-          <label for="cm-time">Horario · Buenos Aires</label>
+          <label for="cm-time"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-clock"/></svg>Horario · Buenos Aires</label>
           <span id="cm-time-label" aria-hidden="true">08:00</span>
         </div>
         <div class="cm-slider" id="cm-slider">
@@ -6216,7 +6316,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
           <button type="button" data-step="3" aria-pressed="false">20:00</button>
         </div>
       </div>
-      <button type="button" class="analysis-back-btn" id="cm-refresh">Actualizar ahora</button>
+      <button type="button" class="analysis-back-btn" id="cm-refresh"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-refresh"/></svg>Actualizar ahora</button>
     </div>
     <div class="cm-info">
       <p class="cm-status" id="cm-last-updated" title="Hora de consulta del CSV público">Última actualización exitosa · Sin carga exitosa</p>
@@ -6229,7 +6329,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <div class="cm-map-wrap">
         <div id="cm-map" aria-label="Mapa histórico de congestión en Caballito">
           <aside class="cm-card" id="cm-card" aria-labelledby="cm-card-title" aria-hidden="true" inert>
-            <header><h3 id="cm-card-title"></h3><button type="button" id="cm-card-close" aria-label="Cerrar detalle del tramo" hidden>×</button></header>
+            <header><h3 id="cm-card-title"></h3><button type="button" id="cm-card-close" aria-label="Cerrar detalle del tramo" hidden><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"/></svg></button></header>
             <p class="cm-card-meta" id="cm-card-date"></p>
             <p class="cm-card-status" id="cm-card-status"></p>
             <p id="cm-card-route"></p>
@@ -6248,7 +6348,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
         <p class="cm-attribution">Ejes viales recortados del <a href="https://data.buenosaires.gob.ar/dataset/calles/resource/2941f731-0a2e-4391-b8c9-a2912a80c081" target="_blank" rel="noopener noreferrer">Callejero de Buenos Aires Data (GCBA)</a>.</p>
       </div>
       <details class="cm-diagnostics">
-        <summary>Tramos y diagnóstico</summary>
+        <summary><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-diagnostic"/></svg>Tramos y diagnóstico</summary>
         <div class="cm-results" id="cm-results" aria-label="Registros del horario seleccionado"></div>
         <p class="cm-status" id="cm-audit"></p>
       </details>
@@ -6263,15 +6363,15 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <div class="analysis-view-title">Resumen Operativo <span class="dc23-tool-tag">INFORME DE SALA</span></div>
       <div class="analysis-view-sub">Estado consolidado · indicadores, prioridades y traspaso</div>
     </div>
-    <button class="analysis-back-btn" onclick="switchAnalysisView('dashboard')">← Dashboard</button>
+    <button class="analysis-back-btn" onclick="switchAnalysisView('dashboard')"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-back"/></svg>Dashboard</button>
   </div>
   <div class="analysis-view-body" id="resumen-view-body">
     <div class="resumen-exec">
       <div class="resumen-kpis">
-        <div class="resumen-kpi red"><div class="resumen-kpi-val" id="res-kpi-sucesos">—</div><div class="resumen-kpi-label">📡 Sucesos activos</div></div>
-        <div class="resumen-kpi amber"><div class="resumen-kpi-val" id="res-kpi-alta">—</div><div class="resumen-kpi-label">🚨 Alta criticidad</div></div>
-        <div class="resumen-kpi gold"><div class="resumen-kpi-val" id="res-kpi-sem">—</div><div class="resumen-kpi-label">🚦 Semáforos con falla</div></div>
-        <div class="resumen-kpi green"><div class="resumen-kpi-val" id="res-kpi-bases">—</div><div class="resumen-kpi-label">🏢 Bases activas</div></div>
+        <div class="resumen-kpi red"><div class="resumen-kpi-val" id="res-kpi-sucesos">—</div><div class="resumen-kpi-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-incident"/></svg>Sucesos activos</div></div>
+        <div class="resumen-kpi amber"><div class="resumen-kpi-val" id="res-kpi-alta">—</div><div class="resumen-kpi-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-warning"/></svg>Alta criticidad</div></div>
+        <div class="resumen-kpi gold"><div class="resumen-kpi-val" id="res-kpi-sem">—</div><div class="resumen-kpi-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-signal"/></svg>Semáforos con falla</div></div>
+        <div class="resumen-kpi green"><div class="resumen-kpi-val" id="res-kpi-bases">—</div><div class="resumen-kpi-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-building"/></svg>Bases activas</div></div>
       </div>
 
       <div class="resumen-panel">
@@ -6290,11 +6390,11 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <div class="resumen-panel resumen-transfer">
         <div class="resumen-panel-title">Texto para Traspaso</div>
         <textarea id="turno-textarea" readonly></textarea>
-        <div style="margin-top:7px"><button class="turno-copy-btn" onclick="copiarTurno()">⧉ Copiar texto</button><span id="turno-copied">✓ Copiado</span></div>
+        <div style="margin-top:7px"><button class="turno-copy-btn" onclick="copiarTurno()"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-copy"/></svg>Copiar texto</button><span id="turno-copied"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-check"/></svg>Copiado</span></div>
       </div>
 
       <div class="resumen-panel resumen-executive">
-        <div class="resumen-panel-title">📋 Resumen Ejecutivo</div>
+        <div class="resumen-panel-title"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-document"/></svg>Resumen Ejecutivo</div>
         <div class="resumen-panel-content exec-copy" id="resumen-ejecutivo"></div>
       </div>
     </div>
@@ -6311,16 +6411,16 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
         <span class="esq-sub">Del parte de sala al mapa</span>
       </div>
       <textarea id="esquema-input" placeholder="Pegá acá el parte operativo..."></textarea>
-      <button id="esquema-generate" onclick="generarEsquemaOperativo()">🚩 Generar Esquema</button>
-      <button class="esq-action" style="width:100%" onclick="copiarEsquemaOperativo()">📋 Copiar mapa</button>
+      <button id="esquema-generate" onclick="generarEsquemaOperativo()"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-route"/></svg>Generar Esquema</button>
+      <button class="esq-action" style="width:100%" onclick="copiarEsquemaOperativo()"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-copy"/></svg>Copiar mapa</button>
       <div id="esquema-status">Listo para analizar.</div>
       <div id="esquema-summary">
-        <div class="esq-summary-title">🚩 MANIFESTACIÓN / OPERATIVO</div>
-        <div class="esq-summary-line">📍 <span id="esq-location">—</span></div>
-        <div class="esq-summary-line">👥 <span id="esq-people">—</span></div>
-        <div class="esq-summary-line">🟥 Cortes <span class="esq-count" id="esq-cuts">0</span></div>
-        <div class="esq-summary-line">🟨 Desvíos <span class="esq-count" id="esq-detours">0</span></div>
-        <div class="esq-summary-line">🚔 Policía <b id="esq-police">No informado</b></div>
+        <div class="esq-summary-title"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-route"/></svg>MANIFESTACIÓN / OPERATIVO</div>
+        <div class="esq-summary-line"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-pin"/></svg><span id="esq-location">—</span></div>
+        <div class="esq-summary-line"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-people"/></svg><span id="esq-people">—</span></div>
+        <div class="esq-summary-line"><svg class="ui-icon ui-icon--label ui-icon--cut" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-cut"/></svg>Cortes <span class="esq-count" id="esq-cuts">0</span></div>
+        <div class="esq-summary-line"><svg class="ui-icon ui-icon--label ui-icon--detour" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-detour"/></svg>Desvíos <span class="esq-count" id="esq-detours">0</span></div>
+        <div class="esq-summary-line"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-police"/></svg>Policía <b id="esq-police">No informado</b></div>
         <div class="esq-legend">
           <span><i class="esq-dot" style="background:#3b82f6"></i>Concentración</span>
           <span><i class="esq-dot" style="background:#ef4444"></i>Corte total</span>
@@ -6340,16 +6440,16 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
   <section class="dc22-module-head" aria-label="Cabecera de Obras">
     <div class="dc22-module-heading">
       <div class="dc22-eyebrow"><span class="dc22-led"></span>OBRAS Y AFECTACIONES</div>
-      <div class="dc22-mainline"><span class="dc22-symbol" aria-hidden="true">🦺</span><h1>Obras</h1><span class="dc22-module-tag">CENTRO DE CONTROL</span></div>
+      <div class="dc22-mainline"><span class="dc22-symbol" aria-hidden="true"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-barrier"/></svg></span><h1>Obras</h1><span class="dc22-module-tag">CENTRO DE CONTROL</span></div>
       <p>Seguimiento de trabajos, vigencias y vencimientos</p>
     </div>
-    <button class="dc22-focus-btn" type="button" data-focus="obras" aria-pressed="false" title="Ampliar el mapa y ocultar los paneles secundarios"><span aria-hidden="true">⛶</span><span class="dc22-focus-label">Ampliar mapa</span></button>
+    <button class="dc22-focus-btn" type="button" data-focus="obras" aria-pressed="false" title="Ampliar el mapa y ocultar los paneles secundarios"><span aria-hidden="true"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-expand"/></svg></span><span class="dc22-focus-label">Ampliar mapa</span></button>
   </section>
 
   <!-- Stats bar -->
   <div id="ob-statsbar">
     <div class="op-s-item">
-      <span class="op-s-label">Obras activas</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-barrier"/></svg>Obras activas</span>
       <span class="op-s-val" id="ob-stat-total" style="color:var(--amber)">0</span>
     </div>
     <div class="op-s-sep"></div>
@@ -6373,18 +6473,18 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <span class="op-s-val" id="ob-stat-rechaz" style="color:var(--text3)">0</span>
     </div>
     <div class="op-s-item" style="margin-left:auto">
-      <button onclick="cargarObras()" style="padding:3px 11px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans)">↺ Actualizar</button>
+      <button onclick="cargarObras()" style="padding:3px 11px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-refresh"/></svg>Actualizar</button>
     </div>
   </div>
 
   <!-- Filter bar -->
   <div id="ob-filterbar">
-    <label>Buscar</label>
+    <label><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-search"/></svg>Buscar</label>
     <input type="text" id="ob-search" placeholder="Calle 1…" oninput="renderObrasList()"
       onkeydown="if(event.key==='Enter'){event.preventDefault();obCenterResults();}">
     <button id="ob-center-btn" onclick="obCenterResults()" title="Centrar mapa en resultados (Enter)"
       style="display:none;align-items:center;gap:4px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.4);color:var(--blue);cursor:pointer;font-size:9px;font-family:var(--mono);padding:3px 8px;border-radius:4px;white-space:nowrap;letter-spacing:0.3px">
-      📍 Centrar
+      <svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-target"/></svg>Centrar
     </button>
     <span id="ob-search-hint" style="display:none;font-family:var(--mono);font-size:9px;color:var(--text3);white-space:nowrap"></span>
     <div class="ob-filter-sep"></div>
@@ -6417,7 +6517,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
     <div class="ob-dep-content">
       <div class="ob-dep-actions">
         <button type="button" class="ob-dep-btn" onclick="obDepAnalizar()">Analizar</button>
-        <button type="button" class="ob-dep-btn ob-dep-copy" id="ob-dep-copy-btn" onclick="obDepCopiar()" disabled>Copiar vigentes</button>
+        <button type="button" class="ob-dep-btn ob-dep-copy" id="ob-dep-copy-btn" onclick="obDepCopiar()" disabled><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-copy"/></svg>Copiar vigentes</button>
         <span class="ob-dep-status" id="ob-dep-status">Pegá el parte y analizalo contra las obras vigentes.</span>
       </div>
       <label class="ob-dep-label" for="ob-dep-input">Parte de obras</label>
@@ -6488,60 +6588,60 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
   <section class="dc22-module-head" aria-label="Cabecera de Grúas">
     <div class="dc22-module-heading">
       <div class="dc22-eyebrow"><span class="dc22-led"></span>PROGRAMACIÓN Y CONTROL</div>
-      <div class="dc22-mainline"><span class="dc22-symbol" aria-hidden="true">🏗️</span><h1>Grúas</h1><span class="dc22-module-tag">CENTRO DE CONTROL</span></div>
+      <div class="dc22-mainline"><span class="dc22-symbol" aria-hidden="true"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-tow"/></svg></span><h1>Grúas</h1><span class="dc22-module-tag">CENTRO DE CONTROL</span></div>
       <p>Programación, prioridades y conflictos geográficos</p>
     </div>
-    <button class="dc22-focus-btn" type="button" data-focus="gruas" aria-pressed="false" title="Ampliar el mapa y ocultar los paneles secundarios"><span aria-hidden="true">⛶</span><span class="dc22-focus-label">Ampliar mapa</span></button>
+    <button class="dc22-focus-btn" type="button" data-focus="gruas" aria-pressed="false" title="Ampliar el mapa y ocultar los paneles secundarios"><span aria-hidden="true"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-expand"/></svg></span><span class="dc22-focus-label">Ampliar mapa</span></button>
   </section>
 
   <div id="gr-statsbar">
     <div class="op-s-item">
-      <span class="op-s-label">🏗️ Hoy</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-tow"/></svg>Hoy</span>
       <span class="op-s-val gr-stat-accent" id="gr-stat-hoy">0</span>
     </div>
     <div class="op-s-sep"></div>
     <div class="op-s-item">
-      <span class="op-s-label">📅 Mañana</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-calendar"/></svg>Mañana</span>
       <span class="op-s-val" id="gr-stat-manana" style="color:var(--blue)">0</span>
     </div>
     <div class="op-s-sep"></div>
     <div class="op-s-item">
-      <span class="op-s-label">📅 Ventana 7 días</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-calendar"/></svg>Ventana 7 días</span>
       <span class="op-s-val" id="gr-stat-7d" style="color:var(--green)">0</span>
     </div>
     <div class="op-s-sep"></div>
     <div class="op-s-item">
-      <span class="op-s-label">📋 En ventana</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-clipboard"/></svg>En ventana</span>
       <span class="op-s-val" id="gr-stat-vigentes" style="color:#22c55e">0</span>
     </div>
     <div class="op-s-sep"></div>
     <div class="op-s-item">
-      <span class="op-s-label">🔴 Críticas</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-warning"/></svg>Críticas</span>
       <span class="op-s-val" id="gr-stat-atencion" style="color:#FBBB0D">0</span>
     </div>
     <div class="op-s-sep"></div>
     <div class="op-s-item">
-      <span class="op-s-label">⚠ Conflictos</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-warning"/></svg>Conflictos</span>
       <span class="op-s-val" id="gr-stat-conflictos" style="color:var(--red)">0</span>
     </div>
     <div class="op-s-sep"></div>
     <div class="op-s-item">
-      <span class="op-s-label">👁 Visible</span>
+      <span class="op-s-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-eye"/></svg>Visible</span>
       <span class="op-s-val" id="gr-stat-visible" style="color:var(--text)">0</span>
     </div>
     <div class="op-s-item" style="margin-left:auto">
-      <button onclick="cargarGruas()" style="padding:3px 11px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans)">↺ Actualizar</button>
+      <button onclick="cargarGruas()" style="padding:3px 11px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-refresh"/></svg>Actualizar</button>
     </div>
   </div>
 
   <div id="gr-filterbar">
     <label>Vista</label>
     <select id="gr-scope" onchange="renderGruas()">
-      <option value="cycle" selected>🎯 Próximos 7 días</option>
-      <option value="7d">📅 Próximos 7 días</option>
-      <option value="pending">✅ Pendientes</option>
-      <option value="history">📚 Histórico</option>
-      <option value="all">🌎 Todas</option>
+      <option value="cycle" selected>Próximos 7 días</option>
+      <option value="7d">Próximos 7 días</option>
+      <option value="pending">Pendientes</option>
+      <option value="history">Histórico</option>
+      <option value="all">Todas</option>
     </select>
     <div class="gr-filter-sep"></div>
     <label>Ciclo</label>
@@ -6568,9 +6668,9 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
     <label>Agentes</label>
     <select id="gr-sel-agentes" onchange="renderGruas()"><option value="">Todos</option></select>
     <div class="gr-filter-sep"></div>
-    <label>Buscar</label>
+    <label><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-search"/></svg>Buscar</label>
     <input type="text" id="gr-search" placeholder="Texto libre…" oninput="renderGruas()">
-    <button class="gr-clear-btn" onclick="grLimpiarFiltros()">Limpiar</button>
+    <button class="gr-clear-btn" onclick="grLimpiarFiltros()"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"/></svg>Limpiar</button>
   </div>
 
   <div id="gr-body">
@@ -6578,7 +6678,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <div id="gr-subheader">
         <div class="op-sh-left">
           <span class="op-sh-count" id="gr-count">0</span>
-          <span class="op-sh-label">🏗️ Grúas</span>
+          <span class="op-sh-label"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-tow"/></svg>Grúas</span>
         </div>
         <span id="gr-ts" style="font-size:9px;color:var(--text3);font-family:var(--mono)"></span>
       </div>
@@ -6594,10 +6694,10 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <div class="gr-map-tools">
         <label class="gr-map-tool">
           <input type="checkbox" id="gr-map-toggle" checked onchange="toggleGruasMapLayer(this.checked)">
-          <span>🏗️ Capa Grúas</span>
+          <span><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-layers"/></svg>Capa Grúas</span>
         </label>
         <div class="gr-map-counter">En mapa <b id="gr-map-n">0</b></div>
-        <div class="gr-map-diagnostic" id="gr-map-diagnostic">📍 0 · ⚠ 0 · ❌ 0</div>
+        <div class="gr-map-diagnostic" id="gr-map-diagnostic"><span title="Ubicadas"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-pin"/></svg>0</span> · <span title="Pendientes"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-warning"/></svg>0</span> · <span title="Errores"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-error"/></svg>0</span></div>
       </div>
     </div>
   </div>
@@ -6615,18 +6715,18 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
     <select id="dv-caso" onchange="dvChooseCase()" disabled><option value="">Sin caso</option></select>
     <label for="dv-locacion">LOCACIÓN</label>
     <select id="dv-locacion" onchange="dvChooseLocation()" disabled><option value="">Sin locación</option></select>
-    <button id="dv-refresh" onclick="dvRefresh()">↻ Actualizar catálogo</button>
+    <button id="dv-refresh" onclick="dvRefresh()"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-refresh"/></svg>Actualizar catálogo</button>
     <span id="dv-status" role="status">Sin cargar</span>
   </div>
   <div id="dv-jornada-info" role="status" aria-live="polite" hidden>Seleccioná una jornada.</div>
   <div id="dv-main">
     <aside id="dv-side">
-      <h3>Capas geográficas</h3>
+      <h3><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-layers"/></svg>Capas geográficas</h3>
       <div id="dv-layer-list">Seleccioná una afectación para ver sus capas.</div>
 
       <!-- Transporte Guiado: datos programados, aislados de QGIS y TomTom -->
       <section id="dv-rail-control" aria-label="Transporte guiado · Evento Papal">
-        <div class="dvr-h"><span>🚇 Transporte guiado</span><span style="font-size:9px;color:#8ca6b4">PAPA 2026</span></div>
+        <div class="dvr-h"><span><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-train"/></svg>Transporte guiado</span><span style="font-size:9px;color:#8ca6b4">PAPA 2026</span></div>
         <label class="dvr-row" for="dvr-on"><input type="checkbox" id="dvr-on"><strong>Mostrar afectaciones ferroviarias</strong></label>
         <p class="dvr-src">Subte · Premetro · Trenes. Programación del 04/11 e IDECABA (copia cartográfica). No es estado en vivo.</p>
         <div class="dvr-choices">
@@ -6678,14 +6778,14 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
 
       </div>
       <section id="dv-sign-section" class="dv-sign-section" aria-label="Cartelería del operativo">
-        <div class="dv-section-head">🚧 Cartelería del operativo</div>
+        <div class="dv-section-head"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-barrier"/></svg>Cartelería del operativo</div>
         <label class="dv-layer-row" for="dv-signs-toggle"><input id="dv-signs-toggle" type="checkbox" onchange="dvToggleSigns(this.checked)"><span class="dv-dot" style="background:#fbbf24" aria-hidden="true"></span><span>Mostrar señales en el mapa</span></label>
         <div id="dv-signs-status" class="dv-mini-note" role="status">Seleccioná una afectación. Cartelería oculta por defecto.</div>
         <label class="dv-sign-filter-label" for="dv-signs-filter">Tipo de señal</label>
         <select id="dv-signs-filter" class="dv-sign-filter" onchange="dvFilterSigns()" disabled><option value="">Todos los tipos</option></select>
         <div class="dv-mini-note">Ubicaciones e íconos extraídos del KMZ original. Hacé clic en una señal para consultar sus datos.</div>
         <div id="dv-croquis-wrap" class="dv-mini-note" style="margin-top:10px">
-          <a id="dv-croquis-link" href="#" target="_blank" rel="noopener noreferrer" hidden>📄 Abrir croquis PDF del escenario</a>
+          <a id="dv-croquis-link" href="#" target="_blank" rel="noopener noreferrer" hidden><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-external"/></svg>Abrir croquis PDF del escenario</a>
           <span id="dv-croquis-note">Croquis: seleccioná un escenario.</span>
         </div>
       </section>
@@ -6717,10 +6817,10 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
   <section class="dc22-module-head" aria-label="Cabecera de Solicitudes">
     <div class="dc22-module-heading">
       <div class="dc22-eyebrow"><span class="dc22-led"></span>GESTIÓN DE CONSULTAS</div>
-      <div class="dc22-mainline"><span class="dc22-symbol" aria-hidden="true">📋</span><h1>Solicitudes</h1><span class="dc22-module-tag">CENTRO DE CONTROL</span></div>
+      <div class="dc22-mainline"><span class="dc22-symbol" aria-hidden="true"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-clipboard"/></svg></span><h1>Solicitudes</h1><span class="dc22-module-tag">CENTRO DE CONTROL</span></div>
       <p>Seguimiento de solicitudes y estados de comunicación</p>
     </div>
-    <button class="dc22-focus-btn" type="button" data-focus="colectivos" aria-pressed="false" title="Ampliar el mapa y ocultar los paneles secundarios"><span aria-hidden="true">⛶</span><span class="dc22-focus-label">Ampliar mapa</span></button>
+    <button class="dc22-focus-btn" type="button" data-focus="colectivos" aria-pressed="false" title="Ampliar el mapa y ocultar los paneles secundarios"><span aria-hidden="true"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-expand"/></svg></span><span class="dc22-focus-label">Ampliar mapa</span></button>
   </section>
 
   <!-- Stats bar -->
@@ -6750,7 +6850,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <span class="op-s-val" id="col-stat-com" style="color:var(--blue)">0</span>
     </div>
     <div class="op-s-item" style="margin-left:auto">
-      <button onclick="cargarColectivos()" style="padding:3px 11px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans)">↺ Actualizar</button>
+      <button onclick="cargarColectivos()" style="padding:3px 11px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-size:10px;font-family:var(--sans)"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-refresh"/></svg>Actualizar</button>
     </div>
   </div>
 
@@ -6771,7 +6871,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <input type="date" id="col-date-to"   onchange="renderColectivosList()" title="Hasta">
     </span>
     <div class="col-filter-sep"></div>
-    <label>Buscar</label>
+    <label><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-search"/></svg>Buscar</label>
     <input type="text" id="col-search" placeholder="Calle, línea, motivo…" oninput="renderColectivosList()">
     <div class="col-filter-sep"></div>
     <label>Línea</label>
@@ -6832,11 +6932,11 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
       <div id="col-safety-banner" style="display:none;position:absolute;top:10px;right:10px;z-index:500;background:var(--bg2,#1e1e1e);border:1px solid #f97316;border-radius:6px;padding:8px 10px 8px 12px;min-width:190px;max-width:230px;box-shadow:0 2px 8px rgba(0,0,0,0.45);pointer-events:auto">
         <div style="display:flex;align-items:flex-start;gap:8px">
           <div style="flex:1;min-width:0">
-            <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:#f97316;letter-spacing:0.5px;margin-bottom:3px">⚠ MODO SEGURIDAD</div>
+            <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:#f97316;letter-spacing:0.5px;margin-bottom:3px"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-warning"/></svg>MODO SEGURIDAD</div>
             <div id="col-safety-count" style="font-family:var(--mono);font-size:10px;color:var(--text2,#aaa);margin-bottom:2px"></div>
             <div style="font-family:var(--sans);font-size:9px;color:var(--text3,#666)">Marcadores optimizados para rendimiento</div>
           </div>
-          <button onclick="colDismissSafetyBanner()" title="Cerrar aviso" style="background:none;border:none;cursor:pointer;color:var(--text3,#666);font-size:14px;line-height:1;padding:0;flex-shrink:0;margin-top:-1px">✕</button>
+          <button onclick="colDismissSafetyBanner()" title="Cerrar aviso" aria-label="Cerrar aviso" style="background:none;border:none;cursor:pointer;color:var(--text3,#666);font-size:14px;line-height:1;padding:0;flex-shrink:0;margin-top:-1px"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"/></svg></button>
         </div>
       </div>
       <!-- Map status counter -->
@@ -6872,7 +6972,7 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
   <div id="comuna-modal-box">
     <div id="comuna-modal-head">
       <span id="comuna-modal-title">Detalle</span>
-      <button style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px" onclick="cerrarDetalleComuna()">✕</button>
+      <button style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px" onclick="cerrarDetalleComuna()" aria-label="Cerrar detalle de comuna"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"/></svg></button>
     </div>
     <div id="comuna-modal-body"></div>
   </div>
@@ -6882,23 +6982,23 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
 <div id="op-footer">
   <span id="footer-ts">—</span>
   <div class="fh-group">
-    <span class="fh-item" id="fh-op">⬤ Operativa</span>
-    <span class="fh-item" id="fh-obras">⬤ Obras</span>
-    <span class="fh-item" id="fh-gruas">⬤ Grúas</span>
-    <span class="fh-item" id="fh-sol">⬤ Solicitudes</span>
-    <span class="fh-item" id="fh-cong">⬤ Congestión</span>
+    <span class="fh-item" id="fh-op"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-dot"/></svg>Operativa</span>
+    <span class="fh-item" id="fh-obras"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-dot"/></svg>Obras</span>
+    <span class="fh-item" id="fh-gruas"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-dot"/></svg>Grúas</span>
+    <span class="fh-item" id="fh-sol"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-dot"/></svg>Solicitudes</span>
+    <span class="fh-item" id="fh-cong"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-dot"/></svg>Congestión</span>
   </div>
 </div>
 
 <!-- ════ ACTIVITY FEED ════ -->
 <div id="activity-feed">
   <div id="activity-feed-header" onclick="toggleActivityFeed()">
-    <span>⚡ Actividad reciente</span>
-    <span id="af-close">✕</span>
+    <span><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-bolt"/></svg>Actividad reciente</span>
+    <button id="af-close" type="button" onclick="toggleActivityFeed()" aria-label="Cerrar actividad"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"/></svg></button>
   </div>
   <div id="activity-feed-body"></div>
 </div>
-<button id="activity-toggle" onclick="toggleActivityFeed()">⚡ Actividad</button>
+<button id="activity-toggle" onclick="toggleActivityFeed()"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-bolt"/></svg>Actividad</button>
 
 <script>
 'use strict';
@@ -7109,7 +7209,7 @@ function animateKPI(id, newVal) {
 // ── Activity Feed ────────────────────────────────────────────────────────────
 const _activityLog = [];
 function logActivity(msg, icon) {
-  icon = icon || '·';
+  icon = icon || 'dot';
   const now = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
   _activityLog.unshift({ msg, icon, ts: now });
   if (_activityLog.length > 20) _activityLog.pop();
@@ -7117,7 +7217,7 @@ function logActivity(msg, icon) {
   if (!body) return;
   const entry = document.createElement('div');
   entry.className = 'af-entry af-new';
-  entry.innerHTML = `<span class="af-ts">${now}</span><span>${icon} ${msg}</span>`;
+  entry.innerHTML = `<span class="af-ts">${now}</span><span>${uiIcon(icon,true)}${msg}</span>`;
   body.insertBefore(entry, body.firstChild);
   while (body.children.length > 20) body.removeChild(body.lastChild);
 }
@@ -7134,8 +7234,9 @@ function updateFooter(module, status) {
   const id  = map[module]; if (!id) return;
   const el  = document.getElementById(id); if (!el) return;
   const labels = { op:'Operativa', obras:'Obras', gruas:'Grúas', sol:'Solicitudes', cong:'Congestión' };
-  const icons  = { ok:'✅', loading:'⏳', error:'⛔' };
-  el.textContent = `${icons[status] || '⬤'} ${labels[module]}`;
+  const icons  = { ok:'check', loading:'clock', error:'error' };
+  uiSetIconLabel(el, icons[status] || 'dot', labels[module]);
+  el.title = {ok:'Disponible', loading:'Cargando', error:'Error de carga'}[status] || 'Sin estado';
   el.style.color = status === 'ok' ? 'var(--green,#22c55e)' : status === 'error' ? 'var(--red,#ef4444)' : 'var(--text3)';
 }
 
@@ -7149,13 +7250,13 @@ function updateBreadcrumb(tab, ctx1, ctx2) {
   // Async updates from other tabs must not overwrite the visible view.
   const current = document.getElementById('view-' + tab);
   if (!current || !current.classList.contains('active')) return;
-  const labels = { home:'📡 Análisis Operativo', planner:'📅 Planner Operativo', analisis:'📊 Análisis · Dashboard Analítico', resumen:'📊 Análisis · 📋 Resumen Operativo', esquema:'📊 Análisis · 🚩 Esquema Operativo', obras:'🚧 Obras', gruas:'🏗️ Grúas', desvios:'🚌 Desvíos', colectivos:'📋 Solicitudes' };
+  const labels = { home:['monitor','Análisis Operativo'], planner:['planner','Planner Operativo'], analisis:['dashboard','Análisis · Dashboard Analítico'], resumen:['document','Análisis · Resumen Operativo'], esquema:['route','Análisis · Esquema Operativo'], 'congestion-medida':['traffic','Análisis · Congestión medida'], obras:['barrier','Obras'], gruas:['tow','Grúas'], desvios:['detour','Desvíos'], colectivos:['clipboard','Solicitudes'] };
   const bcTab  = document.getElementById('bc-tab');
   const bcSep1 = document.getElementById('bc-sep1');
   const bcCtx1 = document.getElementById('bc-ctx1');
   const bcSep2 = document.getElementById('bc-sep2');
   const bcCtx2 = document.getElementById('bc-ctx2');
-  if (bcTab)  bcTab.textContent  = tab === 'congestion-medida' ? '📊 Análisis · Congestión medida' : labels[tab] || tab;
+  if (bcTab) uiSetIconLabel(bcTab, ...(labels[tab] || ['',tab]));
   if (bcSep1) bcSep1.style.display = ctx1 ? '' : 'none';
   if (bcCtx1) { bcCtx1.textContent = ctx1 || ''; bcCtx1.style.display = ctx1 ? '' : 'none'; }
   if (bcSep2) bcSep2.style.display = ctx2 ? '' : 'none';
@@ -7168,26 +7269,26 @@ function colUpdatePills() {
   if (!bar) return;
   const pills = [];
   // Date preset
-  const dateLabels = { today:'📅 Hoy', yesterday:'📅 Ayer', '7d':'📅 Últimos 7 días', '30d':'📅 Últimos 30 días', all:null, custom:'📅 Personalizado' };
+  const dateLabels = { today:'Hoy', yesterday:'Ayer', '7d':'Últimos 7 días', '30d':'Últimos 30 días', all:null, custom:'Personalizado' };
   const dl = dateLabels[colDatePreset];
-  if (dl) pills.push({ label: dl, clear: () => colSetDatePreset('all') });
+  if (dl) pills.push({ label: dl, icon:'calendar', clear: () => colSetDatePreset('all') });
   // Other active filters
   const filters = [
-    { id:'col-sel-linea',    emoji:'🚍', clear: () => { document.getElementById('col-sel-linea').value=''; renderColectivosList(); } },
-    { id:'col-sel-motivo',   emoji:'📌', clear: () => { document.getElementById('col-sel-motivo').value=''; renderColectivosList(); } },
-    { id:'col-sel-area',     emoji:'🏢', clear: () => { document.getElementById('col-sel-area').value=''; renderColectivosList(); } },
-    { id:'col-sel-resuelto', emoji:'✅', clear: () => { document.getElementById('col-sel-resuelto').value=''; renderColectivosList(); } },
-    { id:'col-sel-com',      emoji:'📢', clear: () => { document.getElementById('col-sel-com').value=''; renderColectivosList(); } },
-    { id:'col-sel-recons',   emoji:'🔁', clear: () => { document.getElementById('col-sel-recons').value=''; renderColectivosList(); } },
+    { id:'col-sel-linea',    icon:'bus', clear: () => { document.getElementById('col-sel-linea').value=''; renderColectivosList(); } },
+    { id:'col-sel-motivo',   icon:'pin', clear: () => { document.getElementById('col-sel-motivo').value=''; renderColectivosList(); } },
+    { id:'col-sel-area',     icon:'building', clear: () => { document.getElementById('col-sel-area').value=''; renderColectivosList(); } },
+    { id:'col-sel-resuelto', icon:'check', clear: () => { document.getElementById('col-sel-resuelto').value=''; renderColectivosList(); } },
+    { id:'col-sel-com',      icon:'announce', clear: () => { document.getElementById('col-sel-com').value=''; renderColectivosList(); } },
+    { id:'col-sel-recons',   icon:'refresh', clear: () => { document.getElementById('col-sel-recons').value=''; renderColectivosList(); } },
   ];
   filters.forEach(f => {
     const el = document.getElementById(f.id);
-    if (el && el.value) pills.push({ label: `${f.emoji} ${el.options[el.selectedIndex]?.text || el.value}`, clear: f.clear });
+    if (el && el.value) pills.push({ label: el.options[el.selectedIndex]?.text || el.value, icon:f.icon, clear: f.clear });
   });
   if (!pills.length) { bar.innerHTML = ''; bar.classList.remove('has-pills'); return; }
   bar.classList.add('has-pills');
   bar.innerHTML = pills.map((p, i) =>
-    `<span class="filter-pill">${p.label}<span class="pill-x" data-pi="${i}">✕</span></span>`
+    `<span class="filter-pill">${uiIcon(p.icon,true)}${colEsc(p.label)}<button type="button" class="pill-x" data-pi="${i}" aria-label="Quitar filtro ${colEsc(p.label)}">${uiIcon('close')}</button></span>`
   ).join('');
   bar.querySelectorAll('.pill-x').forEach(x => {
     x.addEventListener('click', () => pills[+x.dataset.pi].clear());
@@ -7200,12 +7301,16 @@ function colUpdatePills() {
 function toggleAnalysisMenu(event) {
   if (event) event.stopPropagation();
   const menu = document.getElementById('analysis-menu');
-  if (menu) menu.classList.toggle('open');
+  if (menu) {
+    const open = menu.classList.toggle('open');
+    document.getElementById('analysis-nav-btn')?.setAttribute('aria-expanded', String(open));
+  }
 }
 
 function closeAnalysisMenu() {
   const menu = document.getElementById('analysis-menu');
   if (menu) menu.classList.remove('open');
+  document.getElementById('analysis-nav-btn')?.setAttribute('aria-expanded', 'false');
 }
 
 function switchAnalysisView(view) {
@@ -8489,7 +8594,7 @@ async function cargarDatos() {
 
     triggerLivePulse();
     updateFooter('op', 'ok'); updateFooterTs();
-    logActivity(`${allSucesos.length} sucesos · ${allSemaforos.length} semáforos`, '📡');
+    logActivity(`${allSucesos.length} sucesos · ${allSemaforos.length} semáforos`, 'monitor');
     dqLastSuccess = Date.now();
     dqDataError   = false;   // CSVs OK — limpiar error crítico
     // dqAuxError no se toca acá — se maneja independientemente
@@ -8505,7 +8610,7 @@ async function cargarDatos() {
     dqLastErrMsg = e.name === 'AbortError' ? 'Timeout (>20s)' : e.message;
     console.error('[DQ] Error en datos principales:', dqLastErrMsg, e);
     renderDQ();
-    if (ts) ts.textContent = '⚠ ' + dqLastErrMsg;
+    if (ts) uiSetIconLabel(ts, 'warning', dqLastErrMsg);
   }
 }
 
@@ -8792,9 +8897,9 @@ let dqLastErrMsg  = '';
 let _alertState = { semCritCount:0, semOldCount:0 };
 let _toastTimer = null;
 
-function mostrarToast(msg) {
+function mostrarToast(msg, icon) {
   const el = document.getElementById('alert-toast'); if(!el) return;
-  el.textContent = msg;
+  uiSetIconLabel(el, icon, msg);
   el.classList.add('active');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(()=>el.classList.remove('active'), 6000);
@@ -8804,7 +8909,7 @@ function checkAlerta(suc) {
   // Banner análisis
   const alta = suc.filter(s=>s.criticidad==='ALTA').length;
   const el = document.getElementById('an-alert'); if(el) {
-    if(alta>=3){el.style.display='block';el.textContent=`⚠ ${alta} SUCESOS ALTA CRITICIDAD`;}
+    if(alta>=3){el.style.display='block';uiSetIconLabel(el,'warning',`${alta} SUCESOS ALTA CRITICIDAD`);}
     else el.style.display='none';
   }
 
@@ -8824,15 +8929,15 @@ function checkAlerta(suc) {
   const legend = document.getElementById('alert-legend');
   if(legend) {
     legend.classList.toggle('active', semCrit > 0);
-    legend.textContent = semCrit > 0 ? `🚦 ${semCrit}` : '';
+    uiSetIconLabel(legend,semCrit>0?'signal':'',semCrit>0?String(semCrit):'');
     legend.title = semCrit === 1 ? '1 semáforo crítico' : semCrit > 1 ? `${semCrit} semáforos críticos` : '';
   }
 
   // Toast solo si empeoró
   if(semCrit > _alertState.semCritCount)
-    mostrarToast(`⚠ ${semCrit} SEMÁFORO${semCrit>1?'S':''} CRÍTICO${semCrit>1?'S':''}`);
+    mostrarToast(`${semCrit} SEMÁFORO${semCrit>1?'S':''} CRÍTICO${semCrit>1?'S':''}`,'warning');
   else if(semOld > _alertState.semOldCount)
-    mostrarToast(`⏱ ${semOld} SEMÁFORO${semOld>1?'S':''} +3H SIN COBERTURA`);
+    mostrarToast(`${semOld} SEMÁFORO${semOld>1?'S':''} +3H SIN COBERTURA`,'timer');
 
   _alertState = { semCritCount:semCrit, semOldCount:semOld };
 }
@@ -8983,13 +9088,13 @@ function renderAnMap(suc, sem) {
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">
           ${s.criticidad?`<span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;background:${color}20;color:${color}">${opEsc(s.criticidad)}</span>`:''}
           ${s.pnp?`<span style="padding:2px 7px;border-radius:3px;font-size:9px;background:rgba(255,255,255,0.06);color:#aaa">${opEsc(s.pnp)}</span>`:''}
-          ${s.emergencia==='SI'||s.emergencia==='S'?`<span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:#ef4444">🚨 EMERGENCIA</span>`:''}
+          ${s.emergencia==='SI'||s.emergencia==='S'?`<span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;background:rgba(239,68,68,0.15);color:#ef4444">${uiIcon('emergency',true)}EMERGENCIA</span>`:''}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10px;color:#666;margin-top:4px;border-top:1px solid rgba(255,255,255,0.06);padding-top:5px">
-          ${s.hora?`<span>🕐 ${s.hora.slice(0,5)}</span>`:''}
-          ${elapsed?`<span>⏱ ${elapsed}</span>`:''}
-          ${s.baseAsignada?`<span>📍 ${opEsc(s.baseAsignada)}</span>`:''}
-          ${s.tenor?`<span>📋 ${opEsc(s.tenor)}</span>`:''}
+          ${s.hora?`<span>${uiIcon('clock',true)}${s.hora.slice(0,5)}</span>`:''}
+          ${elapsed?`<span>${uiIcon('timer',true)}${elapsed}</span>`:''}
+          ${s.baseAsignada?`<span>${uiIcon('pin',true)}${opEsc(s.baseAsignada)}</span>`:''}
+          ${s.tenor?`<span>${uiIcon('clipboard',true)}${opEsc(s.tenor)}</span>`:''}
         </div>
       </div>`, { maxWidth: 240 });
 
@@ -9017,20 +9122,20 @@ function renderAnMap(suc, sem) {
     m.bindPopup(`
       <div style="min-width:195px;font-family:Inter,sans-serif;font-size:12px">
         <div style="color:${color};font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px">
-          🚦 ${opEsc(s.tipoFalla||'FALLA SEMÁFORO')}
+          ${uiIcon(uiSignalIcon(s.tipoFalla),true)}${opEsc(s.tipoFalla||'FALLA SEMÁFORO')}
         </div>
         <div style="font-size:15px;font-weight:700;text-transform:uppercase;margin-bottom:2px;color:#fff">${opEsc(s.calle1)}</div>
         ${s.calle2?`<div style="color:#888;font-size:10px;margin-bottom:5px">y ${opEsc(s.calle2)}</div>`:''}
         <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px">
           ${s.criticidad?`<span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;background:${color}20;color:${color}">${opEsc(s.criticidad)}</span>`:''}
-          <span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:600;${nocob?'background:rgba(239,68,68,0.12);color:#ef4444':'background:rgba(34,197,94,0.1);color:#22c55e'}">${nocob?'SIN COBERTURA':'CON COBERTURA'}</span>
+          <span style="padding:2px 7px;border-radius:3px;font-size:9px;font-weight:600;${nocob?'background:rgba(239,68,68,0.12);color:#ef4444':'background:rgba(34,197,94,0.1);color:#22c55e'}">${uiIcon(nocob?'uncovered':'coverage',true)}${nocob?'SIN COBERTURA':'CON COBERTURA'}</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10px;color:#666;border-top:1px solid rgba(255,255,255,0.06);padding-top:5px">
-          ${s.estado?`<span>📡 ${opEsc(s.estado)}</span>`:''}
-          ${s.baseAsignada?`<span>📍 ${opEsc(s.baseAsignada)}</span>`:''}
-          ${s.zonaSL?`<span>🗺 Zona ${opEsc(s.zonaSL)}</span>`:''}
-          ${s.comuna?`<span>🏘 Comuna ${opEsc(s.comuna)}</span>`:''}
-          ${s.ups&&s.ups!=='NO'&&s.ups!=='N'?`<span style="color:#FBBB0D">⚡ UPS activo</span>`:''}
+          ${s.estado?`<span>${uiIcon('incident',true)}${opEsc(s.estado)}</span>`:''}
+          ${s.baseAsignada?`<span>${uiIcon('pin',true)}${opEsc(s.baseAsignada)}</span>`:''}
+          ${s.zonaSL?`<span>${uiIcon('map',true)}Zona ${opEsc(s.zonaSL)}</span>`:''}
+          ${s.comuna?`<span>${uiIcon('building',true)}Comuna ${opEsc(s.comuna)}</span>`:''}
+          ${s.ups&&s.ups!=='NO'&&s.ups!=='N'?`<span style="color:#FBBB0D">${uiIcon('bolt',true)}UPS activo</span>`:''}
         </div>
       </div>`, { maxWidth: 230 });
 
@@ -9049,7 +9154,7 @@ function renderAnMap(suc, sem) {
       const m = L.marker([s.lat,s.lng],{icon});
       m.bindPopup(`
         <div style="min-width:180px;font-family:Inter,sans-serif;font-size:12px">
-          <div style="color:#f97316;font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px">🚗 CONGESTIÓN VEHICULAR</div>
+          <div style="color:#f97316;font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px">${uiIcon('traffic',true)}CONGESTIÓN VEHICULAR</div>
           <div style="font-size:14px;font-weight:700;text-transform:uppercase;color:#fff;margin-bottom:2px">${opEsc(s.calle1)}</div>
           ${s.calle2&&s.calle2!=='-'?`<div style="color:#888;font-size:10px;margin-bottom:5px">y ${opEsc(s.calle2)}</div>`:''}
           ${s.descripcion?`<div style="color:#777;font-size:10px;margin-bottom:4px;line-height:1.4">${opEsc(s.descripcion.slice(0,80))}</div>`:''}
@@ -9218,6 +9323,20 @@ function updateOpSub() {
 
 function opEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
+const UI_INCIDENT_ICONS = {"💥":"crash","🚒":"rescue","🌊":"water","🏚":"collapse-building","🚔":"police","📢":"announce","🌳":"tree","🏗":"barrier","⛔":"ban","🚛":"tow","🔥":"traffic","🔧":"tool","🎭":"event"};
+function uiIncidentIcon(value) {
+  const text = String(value || '').toLowerCase();
+  if (text.includes('colaborac')) return 'people';
+  if (text.includes('corte') || text.includes('obstruc')) return 'cut';
+  return UI_INCIDENT_ICONS[getIcon(value)] || 'warning';
+}
+function uiSignalIcon(value) {
+  const text = String(value || '').toUpperCase();
+  if (text.includes('APAGADO')) return 'power';
+  if (text.includes('DESPROGRAM')) return 'program';
+  return 'signal';
+}
+
 function getIcon(s) {
   const t=(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   if(t.includes('siniestro')) return '💥'; if(t.includes('bombero')) return '🚒';
@@ -9268,7 +9387,7 @@ function renderOpList() {
     for(const [sub,items] of sorted) {
       html+=`<div style="margin-bottom:10px">
         <div class="op-group-title">
-          <span class="op-group-icon">${getIcon(sub)}</span>
+          <span class="op-group-icon">${uiIcon(uiIncidentIcon(sub))}</span>
           <span class="op-group-name">${opEsc(sub)}</span>
           <span class="op-group-cnt">${items.length}</span>
         </div>`;
@@ -9304,7 +9423,7 @@ function renderOpList() {
   if(allSemaforos.length) {
     html+=`<div style="margin-bottom:10px">
       <div class="op-group-title">
-        <span class="op-group-icon">🚦</span>
+        <span class="op-group-icon">${uiIcon('signal')}</span>
         <span class="op-group-name">Semáforos con Falla</span>
         <span class="op-group-cnt">${allSemaforos.length}</span>
       </div>`;
@@ -9317,13 +9436,13 @@ function renderOpList() {
       html+=`<div class="op-sem-item" style="border-color:${semCfg.color}22">
         <div class="op-sem-accent" style="background:${semCfg.color}"></div>
         <div class="op-sem-body">
-          <div class="op-sem-tipo" style="color:${acc}">${opEsc(s.tipoFalla||'FALLA')}</div>
+          <div class="op-sem-tipo" style="color:${acc}">${uiIcon(uiSignalIcon(s.tipoFalla),true)}${opEsc(s.tipoFalla||'FALLA')}</div>
           <div class="op-sem-street">${opEsc(s.calle1)}</div>
           ${s.calle2?`<div class="op-sem-cross">y ${opEsc(s.calle2)}</div>`:''}
         </div>
         <span style="width:18px;height:18px;border-radius:50%;background:${semCfg.color};display:inline-flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:800;color:${semKey==='NC'?'#ccc':'#000'};flex-shrink:0;box-shadow:${semCfg.glow}">${semKey}</span>
         ${semTimeBadge(calcSemMinutes(s.inicioSuceso))}
-        <span class="op-sem-cob" style="${nocob?'color:#ef4444;border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.08)':'color:#22c55e;border-color:rgba(34,197,94,0.25);background:rgba(34,197,94,0.07)'}">${nocob?'SIN COB.':'CON COB.'}</span>
+        <span class="op-sem-cob" style="${nocob?'color:#ef4444;border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.08)':'color:#22c55e;border-color:rgba(34,197,94,0.25);background:rgba(34,197,94,0.07)'}">${uiIcon(nocob?'uncovered':'coverage',true)}${nocob?'SIN COB.':'CON COB.'}</span>
       </div>`;
     });
     if(allSemaforos.length>20) html+=`<div style="font-size:10px;color:var(--text3);text-align:center;padding:5px">+${allSemaforos.length-20} más</div>`;
@@ -9388,7 +9507,7 @@ function mkMarker(item,isSel,isSem) {
   const sz=isSel?34:baseSz, half=sz/2;
   const opacity=(!isSel&&isBaja)?0.6:1;
   const glow=isSel?`0 0 0 3px ${fill}44,0 0 14px ${fill}55`:(isAlta?`0 0 9px ${fill}88`:`0 0 6px ${fill}44`);
-  const emoji=isSem?'🚦':getIcon(item.subtipo||item.tipoOp||'');
+  const icon=isSem?uiSignalIcon(item.tipoFalla):uiIncidentIcon(item.subtipo||item.tipoOp||'');
   const pulse=(isSel||(isAlta&&!isSem))?`<div style="position:absolute;inset:-6px;border-radius:50%;border:2px solid ${fill};opacity:0.35;animation:sup-rpl 1.8s ease-out infinite"></div>`:'';
   return L.divIcon({
     className:'', iconSize:[sz,sz], iconAnchor:[half,half],
@@ -9925,7 +10044,7 @@ body.theme-light .gr-map-counter { background:rgba(255,255,255,.92); }
 </style>
       <div style="position:relative;width:${sz}px;height:${sz}px;opacity:${opacity}">
         ${pulse}
-        <div style="position:absolute;inset:0;border-radius:50%;background:${fill};box-shadow:${glow};border:${isSel?'2.5px':'2px'} solid rgba(255,255,255,${isSel?0.35:0.12});display:flex;align-items:center;justify-content:center;font-size:${isSel?14:11}px">${emoji}</div>
+        <div style="position:absolute;inset:0;border-radius:50%;background:${fill};box-shadow:${glow};border:${isSel?'2.5px':'2px'} solid rgba(255,255,255,${isSel?0.35:0.12});display:flex;align-items:center;justify-content:center;font-size:${isSel?14:11}px">${uiIcon(icon)}</div>
       </div>`,
   });
 }
@@ -10484,13 +10603,13 @@ renderKPIs = function(suc, sem) {
 function getDQStatus() {
   // 1. Sin carga exitosa aún
   if (!dqLastSuccess) return {
-    level:'unknown', label:'Sin datos', dot:'⚪',
+    level:'unknown', label:'Sin datos',
     title: dqDataError ? `Error: ${dqLastErrMsg}` : 'Esperando primera carga...',
     color:'#505058', border:'rgba(80,80,88,0.2)', bg:'transparent',
   };
   // 2. Error en datos principales (CSVs) — estado crítico
   if (dqDataError) return {
-    level:'error', label:'Error en datos principales', dot:'🔴',
+    level:'error', label:'Error en datos principales',
     title: dqLastErrMsg || 'Fallo al leer planillas',
     color:'#ef4444', border:'rgba(239,68,68,0.3)', bg:'rgba(239,68,68,0.07)',
   };
@@ -10498,23 +10617,23 @@ function getDQStatus() {
   const mins = Math.floor((Date.now() - dqLastSuccess) / 60000);
   const syncTime = new Date(dqLastSuccess).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   if (mins > 10) return {
-    level:'stale', label:`Datos viejos (${mins} min)`, dot:'🔴',
+    level:'stale', label:`Datos viejos (${mins} min)`,
     title:`Último sync: ${syncTime}`,
     color:'#ef4444', border:'rgba(239,68,68,0.3)', bg:'rgba(239,68,68,0.07)',
   };
   if (mins > 3) return {
-    level:'warning', label:`Último sync ${mins} min`, dot:'🟡',
+    level:'warning', label:`Último sync ${mins} min`,
     title:`Último sync exitoso: ${syncTime}`,
     color:'#FBBB0D', border:'rgba(251,187,13,0.25)', bg:'rgba(251,187,13,0.06)',
   };
   // 4. Datos OK — mostrar aviso sutil si hay fallas auxiliares
   if (dqAuxError) return {
-    level:'ok_aux', label:'Datos OK (fallas menores)', dot:'🟡',
+    level:'ok_aux', label:'Datos OK (fallas menores)',
     title:'Planillas OK. Fallas en geocodificación o servicios auxiliares.',
     color:'#FBBB0D', border:'rgba(251,187,13,0.2)', bg:'rgba(251,187,13,0.04)',
   };
   return {
-    level:'ok', label:`Actualizado hace ${mins < 1 ? '< 1' : mins} min`, dot:'🟢',
+    level:'ok', label:`Actualizado hace ${mins < 1 ? '< 1' : mins} min`,
     title:`Último sync exitoso: ${syncTime}`,
     color:'#22c55e', border:'rgba(34,197,94,0.2)', bg:'rgba(34,197,94,0.05)',
   };
@@ -10524,7 +10643,7 @@ function renderDQ() {
   const el = document.getElementById('dq-indicator');
   if (!el) return;
   const s = getDQStatus();
-  el.textContent       = `${s.dot} ${s.label}`;
+  uiSetIconLabel(el, 'dot', s.label);
   el.style.color       = s.color;
   el.style.borderColor = s.border;
   el.style.background  = s.bg;
@@ -10642,7 +10761,7 @@ function removeTTFlowLayer(map) {
 // ── Botón Congestión en Vista Operativa ──────────────────────────────────────
 function toggleOpCongestion() {
   opCongActive = !opCongActive;
-  logActivity(opCongActive ? 'Congestión activada' : 'Congestión desactivada', '🚗');
+  logActivity(opCongActive ? 'Congestión activada' : 'Congestión desactivada', 'traffic');
   updateFooter('cong', opCongActive ? 'ok' : 'loading');
   const btn = document.getElementById('op-cong-btn');
   if (btn) {
@@ -10659,7 +10778,7 @@ function toggleOpCongestion() {
       const MAX_AUTO_CONGESTION_ZOOM = 15;
       if (opMap.getZoom() < MAX_AUTO_CONGESTION_ZOOM) {
         opMap.flyTo(opMap.getCenter(), MAX_AUTO_CONGESTION_ZOOM, { duration: 0.8 });
-        logActivity('Vista de congestión optimizada (zoom 15)', '🟠');
+        logActivity('Vista de congestión optimizada (zoom 15)', 'target');
       }
     }
     renderOpCongMarkers();
@@ -10685,7 +10804,7 @@ function renderOpCongMarkers() {
     const dir = s.calle1 + (s.calle2 && s.calle2 !== '-' ? ' y ' + s.calle2 : '');
     m.bindPopup(`
       <div style="min-width:170px;font-family:Inter,sans-serif;font-size:12px">
-        <div style="color:#f97316;font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:4px">🚗 CONGESTIÓN</div>
+        <div style="color:#f97316;font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:4px">${uiIcon('traffic',true)}CONGESTIÓN</div>
         <div style="font-weight:700;font-size:13px;text-transform:uppercase;color:#fff;margin-bottom:2px">${opEsc(s.calle1)}</div>
         ${s.calle2 && s.calle2 !== '-' ? `<div style="color:#888;font-size:10px;margin-bottom:4px">y ${opEsc(s.calle2)}</div>` : ''}
         ${s.descripcion ? `<div style="color:#777;font-size:10px;margin-bottom:4px;line-height:1.4">${opEsc(s.descripcion.slice(0,80))}</div>` : ''}
@@ -11130,7 +11249,7 @@ async function onTTMapClick(e) {
 
   const loadingPopup = L.popup({ maxWidth: 220 })
     .setLatLng(e.latlng)
-    .setContent(`<div style="font-family:Inter,sans-serif;font-size:11px;color:#888;padding:4px">🔍 Consultando TomTom...</div>`)
+    .setContent(`<div style="font-family:Inter,sans-serif;font-size:11px;color:#888;padding:4px">${uiIcon('search',true)}Consultando TomTom...</div>`)
     .openOn(map);
 
   const delta = 0.0015;
@@ -11158,7 +11277,7 @@ async function onTTMapClick(e) {
     return {inc, dist:minDist};
   }).sort((a,b)=>a.dist-b.dist).map(x=>x.inc);
 
-  const catEmojis = {0:'⚠️',1:'🚨',2:'🌫️',3:'⚠️',4:'🌧️',5:'🧊',6:'🚧',7:'🏗️',8:'💨',9:'🌊',10:'🔧',11:'🚫',14:'🚫'};
+    const categoryIcons = {"0":"warning","1":"emergency","2":"fog","3":"warning","4":"rain","5":"ice","6":"barrier","7":"barrier","8":"wind","9":"water","10":"tool","11":"ban","14":"ban"};
   const catLabels = {0:'Incidente',1:'Accidente',2:'Niebla',3:'Peligro',4:'Lluvia',5:'Hielo',6:'Obstrucción',7:'Obra vial',8:'Viento',9:'Inundación',10:'Avería',11:'Cierre de vía',14:'Cierre de vía'};
   const magColors = {0:'#666',1:'#22c55e',2:'#FBBB0D',3:'#f97316',4:'#ef4444'};
   const magLabels = {0:'Sin impacto',1:'Leve',2:'Moderado',3:'Grave',4:'Vía bloqueada'};
@@ -11172,7 +11291,7 @@ async function onTTMapClick(e) {
     let h='';
     if (compact) {
       return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-top:1px solid rgba(255,255,255,0.05)">
-        <span style="font-size:12px">${catEmojis[dIcon]||'⚠️'}</span>
+        <span style="font-size:12px">${uiIcon(categoryIcons[dIcon]||'warning')}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:10px;font-weight:600;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${props.from||'Sin ubicación'}</div>
           ${props.to&&props.to!==props.from?`<div style="font-size:9px;color:#555">→ ${props.to}</div>`:''}
@@ -11180,11 +11299,11 @@ async function onTTMapClick(e) {
         <span style="font-size:9px;font-weight:700;color:${color};flex-shrink:0">${magLabels[mag]||''}</span>
       </div>`;
     }
-    h += `<div style="color:${color};font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${catEmojis[dIcon]||'⚠️'} ${catLabels[dIcon]||'Incidente'}</div>`;
+    h += `<div style="color:${color};font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${uiIcon(categoryIcons[dIcon]||'warning',true)}${catLabels[dIcon]||'Incidente'}</div>`;
     if (props.from) h += `<div style="font-weight:700;font-size:13px;color:#fff;margin-bottom:${props.to&&props.to!==props.from?'2':'5'}px">${props.from}</div>`;
     if (props.to&&props.to!==props.from) h += `<div style="color:#666;font-size:10px;margin-bottom:5px">→ ${props.to}</div>`;
     // Números de ruta/calle si están disponibles
-    if (props.roadNumbers?.length) h += `<div style="color:#555;font-size:9px;margin-bottom:4px">🛣 ${props.roadNumbers.join(', ')}</div>`;
+    if (props.roadNumbers?.length) h += `<div style="color:#555;font-size:9px;margin-bottom:4px">${uiIcon('road',true)}${props.roadNumbers.join(', ')}</div>`;
     const desc=props.events?.[0]?.description;
     // Para cierres, mostrar causa además de descripción
     if (desc) {
@@ -11203,8 +11322,8 @@ async function onTTMapClick(e) {
       }
     }
     h += `<span style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;background:${color}22;color:${color};border:1px solid ${color}44;margin-bottom:6px">${magLabels[mag]||''}</span>`;
-    if (props.delay&&props.delay>60) h += `<div style="color:${color};font-size:11px;margin-bottom:4px">⏱ Demora: <b>${Math.round(props.delay/60)} min</b></div>`;
-    if (props.startTime) { const t=new Date(props.startTime).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); h += `<div style="color:#555;font-size:9px;margin-bottom:3px">📅 Activo desde: ${t}</div>`; }
+    if (props.delay&&props.delay>60) h += `<div style="color:${color};font-size:11px;margin-bottom:4px">${uiIcon('timer',true)}Demora: <b>${Math.round(props.delay/60)} min</b></div>`;
+    if (props.startTime) { const t=new Date(props.startTime).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); h += `<div style="color:#555;font-size:9px;margin-bottom:3px">${uiIcon('calendar',true)}Activo desde: ${t}</div>`; }
     return h;
   }
 
@@ -11220,9 +11339,9 @@ async function onTTMapClick(e) {
     if (incidents.length > 1) {
       const extraId = 'tt-x-' + Date.now();
       html += `<div style="margin-top:5px">
-        <button onclick="var el=document.getElementById('${extraId}');el.style.display=el.style.display==='none'?'block':'none';this.textContent=el.style.display==='none'?'▶ Ver ${incidents.length-1} más':'▼ Ocultar'"
+        <button onclick="var el=document.getElementById('${extraId}');el.style.display=el.style.display==='none'?'block':'none';uiSetIconLabel(this,el.style.display==='none'?'right':'down',el.style.display==='none'?'Ver ${incidents.length-1} más':'Ocultar')"
           style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:#666;font-size:9px;cursor:pointer;padding:3px 8px;width:100%;text-align:left">
-          ▶ Ver ${incidents.length-1} más
+          ${uiIcon('right',true)}Ver ${incidents.length-1} más
         </button>
         <div id="${extraId}" style="display:none">
           ${incidents.slice(1).map(i=>renderInc(i.properties||{},true)).join('')}
@@ -11243,7 +11362,7 @@ async function onTTMapClick(e) {
     const level=ratio>0.8?1:ratio>0.6?2:ratio>0.3?3:4;
     const fc=['#22c55e','#22c55e','#FBBB0D','#f97316','#ef4444'][level];
     const fl=['Fluido','Fluido','Lento','Congestionado','Detenido'][level];
-    if (!incidents.length) html+=`<div style="color:${fc};font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">🚗 Flujo vial</div>`;
+    if (!incidents.length) html+=`<div style="color:${fc};font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${uiIcon('traffic',true)}Flujo vial</div>`;
     html+=`<div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:3px"><span style="color:#777">Velocidad actual</span><span style="font-family:monospace;font-weight:700;color:${fc}">${Math.round(speed)} km/h</span></div>
     <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:7px"><span style="color:#777">Flujo libre</span><span style="font-family:monospace;color:#555">${Math.round(freeFlow)} km/h</span></div>
     <div style="height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden"><div style="height:100%;width:${Math.round(ratio*100)}%;background:${fc};border-radius:3px"></div></div>
@@ -11267,7 +11386,7 @@ function toggleRouteMode() {
     btn.style.background  = routeMode ? 'rgba(56,189,248,0.12)' : 'transparent';
     btn.style.color       = routeMode ? 'var(--blue)' : 'var(--text3)';
     btn.style.borderColor = routeMode ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.25)';
-    btn.textContent       = routeMode ? '✕ Cancelar' : '📊 Medir traza';
+  uiSetIconLabel(btn, routeMode ? 'close' : 'route', routeMode ? 'Cancelar' : 'Medir traza');
   }
   if (!routeMode) clearRoute();
 }
@@ -11311,7 +11430,7 @@ function onRouteModeClick(e) {
   else {
     L.popup({closeButton:false,autoClose:true})
       .setLatLng([lat,lng])
-      .setContent(`<div style="font-family:Inter,sans-serif;font-size:11px;color:#888">✅ Punto A marcado — hacé click en <b style="color:#f97316">punto B</b></div>`)
+      .setContent(`<div style="font-family:Inter,sans-serif;font-size:11px;color:#888">${uiIcon('check',true)}Punto A marcado — hacé click en <b style="color:#f97316">punto B</b></div>`)
       .openOn(map);
   }
 }
@@ -11321,7 +11440,7 @@ async function calcRoute(map) {
   const midLat = (A.lat+B.lat)/2, midLng = (A.lng+B.lng)/2;
 
   L.popup({maxWidth:220}).setLatLng([midLat,midLng])
-    .setContent(`<div style="font-family:Inter,sans-serif;font-size:11px;color:#888;padding:4px">📊 Analizando tráfico en la traza...</div>`)
+    .setContent(`<div style="font-family:Inter,sans-serif;font-size:11px;color:#888;padding:4px">${uiIcon('chart',true)}Analizando tráfico en la traza...</div>`)
     .openOn(map);
 
   try {
@@ -11386,7 +11505,7 @@ async function calcRoute(map) {
 
     L.popup({maxWidth:270}).setLatLng([midLat, midLng])
       .setContent(`<div style="min-width:210px;font-family:Inter,sans-serif;font-size:12px">
-        <div style="color:#38bdf8;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">📊 Análisis de traza A → B</div>
+        <div style="color:#38bdf8;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">${uiIcon('chart',true)}Análisis de traza A → B</div>
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
           <span style="color:#777">Distancia aprox.</span>
           <span style="font-family:monospace;font-weight:700;color:#fff">${distKm} km</span>
@@ -11406,8 +11525,8 @@ async function calcRoute(map) {
         <div style="padding:5px 8px;background:${dc}18;border:1px solid ${dc}44;border-radius:4px;font-size:10px;color:${dc};font-weight:600;margin-bottom:6px">
           ${labels[worstLevel]} — ${valid.length} segmentos analizados
         </div>
-        ${worstLevel >= 3 ? `<div style="font-size:9px;color:#f97316;margin-bottom:4px">⚠ Hay tramos con congestión severa en la traza</div>` : ''}
-        <button onclick="clearRoute();toggleRouteMode()" style="margin-top:4px;width:100%;padding:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:#888;font-size:9px;cursor:pointer">✕ Limpiar</button>
+        ${worstLevel >= 3 ? `<div style="font-size:9px;color:#f97316;margin-bottom:4px">${uiIcon('warning',true)}Hay tramos con congestión severa en la traza</div>` : ''}
+        <button onclick="clearRoute();toggleRouteMode()" style="margin-top:4px;width:100%;padding:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:#888;font-size:9px;cursor:pointer">${uiIcon('close',true)}Limpiar</button>
       </div>`).openOn(map);
 
   } catch(err) {
@@ -11682,7 +11801,7 @@ function obToast(msg, type) {
   el.style.background    = isWarn ? 'rgba(251,187,13,0.12)' : 'rgba(56,189,248,0.12)';
   el.style.border        = isWarn ? '1px solid rgba(251,187,13,0.5)' : '1px solid rgba(56,189,248,0.45)';
   el.style.color         = isWarn ? 'var(--amber,#FBBB0D)' : 'var(--blue,#38bdf8)';
-  el.textContent         = msg;
+  uiSetIconLabel(el, isWarn ? 'warning' : 'pin', msg);
   el.style.opacity       = '1';
   clearTimeout(_obToastTimer);
   _obToastTimer = setTimeout(() => { el.style.opacity = '0'; }, 2500);
@@ -11694,11 +11813,11 @@ function obCenterResults() {
   if (!search) return;
   const list = obrasFilteredList().filter(o => o.lat != null && o.lng != null);
   if (!list.length) {
-    obToast('⚠ No se encontraron obras para esa calle', 'warn');
+    obToast('No se encontraron obras para esa calle', 'warn');
     return;
   }
   const label = search.length > 22 ? search.slice(0, 21) + '…' : search;
-  obToast(`📍 ${list.length} obra${list.length !== 1 ? 's' : ''} sobre ${label}`);
+  obToast(`${list.length} obra${list.length !== 1 ? 's' : ''} sobre ${label}`);
   if (list.length === 1) { obMap.flyTo([list[0].lat, list[0].lng], 16, { duration: 0.8 }); return; }
   const bounds = L.latLngBounds(list.map(o => [o.lat, o.lng]));
   obMap.flyToBounds(bounds, { padding: [40, 40], maxZoom: 17, duration: 0.8 });
@@ -11719,7 +11838,7 @@ function renderObrasList() {
   if (hint) {
     if (search && list.length > 0) {
       const label = search.length > 18 ? search.slice(0, 17) + '…' : search;
-      hint.textContent = `🔎 ${label} · ${list.length} resultado${list.length !== 1 ? 's' : ''}`;
+      uiSetIconLabel(hint, 'search', `${label} · ${list.length} resultado${list.length !== 1 ? 's' : ''}`);
       hint.style.display = 'inline';
     } else {
       hint.style.display = 'none';
@@ -11740,7 +11859,7 @@ function renderObrasList() {
     const effEnd   = obEffectiveEnd(o);
     const hasPror  = !!o.prorroga && !!parseObrasDate(o.prorroga);
 
-    const rechazBadge = rechaz ? `<span class="ob-badge ob-badge-rechaz">🚫 RECHAZADA</span>` : '';
+    const rechazBadge = rechaz ? `<span class="ob-badge ob-badge-rechaz">${uiIcon('ban',true)}RECHAZADA</span>` : '';
     const prorBadge   = !rechaz && hasPror ? `<span class="ob-badge ob-badge-prorroga">PRÓRROGA</span>` : '';
     const daysBadge   = !rechaz && days !== null
       ? days === 0 ? `<span class="ob-badge ob-badge-vence">VENCE HOY</span>`
@@ -11750,7 +11869,7 @@ function renderObrasList() {
 
     const accentColor = rechaz ? '#505060' : '#f97316';
     const cardOpacity = rechaz ? 'opacity:0.55;' : '';
-    const typeLabel   = rechaz ? '🚫 RECHAZADA' : '🚧 OBRA';
+    const typeLabel   = rechaz ? 'RECHAZADA' : 'OBRA';
 
     html += `<div class="ob-card" style="${cardOpacity}">
       <div class="ob-card-accent" style="background:${accentColor}"></div>
@@ -11806,11 +11925,11 @@ function _obBuildMarker(o) {
   const icon = L.divIcon({
     className: '',
     iconSize: [22, 22], iconAnchor: [11, 11],
-    html: `<div style="width:22px;height:22px;background:${color};border-radius:4px;border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 0 6px ${color}55;opacity:${markerOpacity}">${rechaz?'🚫':'🚧'}</div>`,
+    html: `<div style="width:22px;height:22px;background:${color};border-radius:4px;border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 0 6px ${color}55;opacity:${markerOpacity}">${uiIcon(rechaz?'ban':'barrier')}</div>`,
   });
   const m = L.marker([o.lat, o.lng], { icon });
   m.bindPopup(`<div style="min-width:200px;font-family:Inter,sans-serif;font-size:12px">
-    <div style="color:${rechaz?'#888':'#f97316'};font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px">${rechaz?'🚫 RECHAZADA':'🚧 OBRA'}</div>
+    <div style="color:${rechaz?'#888':'#f97316'};font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px">${uiIcon(rechaz?'ban':'barrier',true)}${rechaz?'RECHAZADA':'OBRA'}</div>
     <div style="font-size:13px;font-weight:700;text-transform:uppercase;color:${rechaz?'#888':'#fff'};margin-bottom:4px">${obEsc(loc)}</div>
     ${o.solicitante?`<div style="color:#888;font-size:10px;margin-bottom:2px"><b style="color:#aaa">Solicitante:</b> ${obEsc(o.solicitante)}</div>`:''}
     ${o.expediente?`<div style="color:#888;font-size:10px;margin-bottom:2px"><b style="color:#aaa">Expediente:</b> ${obEsc(o.expediente)}</div>`:''}
@@ -11950,7 +12069,7 @@ async function cargarObras() {
     const now = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
     if (ts) ts.textContent = `${now} · ${allObras.length} obras`;
     updateFooter('obras', 'ok'); updateFooterTs();
-    logActivity(`${allObras.length} obras cargadas`, '🚧');
+    logActivity(`${allObras.length} obras cargadas`, 'barrier');
   } catch(e) {
     if (ts) ts.textContent = `Error: ${e.message}`;
     updateFooter('obras', 'error');
@@ -12442,7 +12561,7 @@ function grBuildIntel(g) {
   }
   const top = intel.matches.slice(0,3);
   return `<div class="gr-detail-intel ${intel.level}">
-    <div class="gr-detail-intel-title">⚠ ${grEsc(grConflictText(intel.level))}</div>
+    <div class="gr-detail-intel-title">${uiIcon('warning',true)}${grEsc(grConflictText(intel.level))}</div>
     ${top.map(x => `<div class="gr-detail-intel-item"><b>${grEsc(x.reason)}</b> · ${grEsc(x.location || 'Obra vigente')}${x.distance != null ? ` · ${x.distance} m` : ''}</div>`).join('')}
   </div>`;
 }
@@ -12512,7 +12631,7 @@ function renderGruas() {
   const scopeLabel = {cycle:'Próximos 7 días','7d':'Próximos 7 días',pending:'Pendientes',history:'Histórico',all:'Todas'}[scope] || 'Próximo Operativo';
   const cycleLabelEl = document.getElementById('gr-cycle-label');
   if (cycleLabelEl) cycleLabelEl.textContent = scope === 'cycle' ? `${grDateLabel(grTodayStart(0))} → +7 días` : '';
-  updateBreadcrumb('gruas', date ? `📅 ${date}` : `📌 ${scopeLabel}`, `${list.length} resultado${list.length !== 1 ? 's' : ''}`);
+  updateBreadcrumb('gruas', date ? `${date}` : `${scopeLabel}`, `${list.length} resultado${list.length !== 1 ? 's' : ''}`);
 
   if (!list.length) {
     scroll.innerHTML = '<div class="gr-empty"><span>Sin grúas para los filtros seleccionados</span></div>';
@@ -12522,9 +12641,9 @@ function renderGruas() {
 
   const conflictFocus = grConflictSelectedIdx != null ? allGruas.find(x => x._idx === Number(grConflictSelectedIdx)) : null;
   let html = `<div class="gr-group" style="margin-bottom:10px">
-    ${conflictFocus ? `<div class="gr-conflict-mode-bar"><span class="gr-conflict-mode-label">⚠ MODO CONFLICTOS · ${grEsc(grAddress(conflictFocus) || 'GRÚA SELECCIONADA')}</span><button type="button" class="gr-conflict-exit" data-gr-conflicts-exit>← Volver a grúas</button></div>` : ''}
+    ${conflictFocus ? `<div class="gr-conflict-mode-bar"><span class="gr-conflict-mode-label">${uiIcon('warning',true)}MODO CONFLICTOS · ${grEsc(grAddress(conflictFocus) || 'GRÚA SELECCIONADA')}</span><button type="button" class="gr-conflict-exit" data-gr-conflicts-exit>${uiIcon('back',true)}Volver a grúas</button></div>` : ''}
     <div class="op-group-title">
-      <span class="op-group-icon">🚛</span>
+      <span class="op-group-icon">${uiIcon('tow')}</span>
       <span class="op-group-name">Grúas</span>
       <span class="op-group-cnt">${list.length}</span>
     </div>`;
@@ -12542,7 +12661,7 @@ function renderGruas() {
     const address = grAddress(g) || 'SIN DIRECCIÓN';
     const secondary = g.empresa || grCross(g) || '';
     const desc = g.tipoTrabajo || '';
-    const conflict = intel.level ? `<div class="gr-card-conflict" style="color:${intel.level==='high'?'#ef4444':intel.level==='medium'?'#FBBB0D':'#94a3b8'}">⚠ ${grEsc(grConflictText(intel.level))}${intel.matches[0]?.distance != null ? ` · ${intel.matches[0].distance} m` : ''}</div>` : '';
+    const conflict = intel.level ? `<div class="gr-card-conflict" style="color:${intel.level==='high'?'#ef4444':intel.level==='medium'?'#FBBB0D':'#94a3b8'}">${uiIcon('warning',true)}${grEsc(grConflictText(intel.level))}${intel.matches[0]?.distance != null ? ` · ${intel.matches[0].distance} m` : ''}</div>` : '';
 
     html += `<div class="gr-card${selected ? ' sel' : ''}" data-gr-idx="${idx}" style="border-color:${selected ? acc+'66' : 'var(--border)'}">
       <div class="gr-card-accent" style="background:${acc};opacity:${selected ? 1 : .5}"></div>
@@ -12563,7 +12682,7 @@ function renderGruas() {
           ${g.carriles ? `<span><b>${grEsc(g.carriles)}</b> carriles</span>` : ''}
         </div>
         ${conflict}
-        <div class="gr-card-actions"><button type="button" class="gr-card-conflicts-btn${grConflictSelectedIdx === idx ? ' active' : ''}" data-gr-conflicts="${idx}">⚠ Conflictos</button></div>
+        <div class="gr-card-actions"><button type="button" class="gr-card-conflicts-btn${grConflictSelectedIdx === idx ? ' active' : ''}" data-gr-conflicts="${idx}">${uiIcon('warning',true)}Conflictos</button></div>
       </div>
       <div class="gr-card-bar" style="background:${acc};height:${selected ? 2 : 1}px;opacity:${selected ? .6 : .2}"></div>
       <div class="gr-card-detail${selected ? ' open' : ''}" data-gr-detail-idx="${idx}">${grBuildDetail(g)}</div>
@@ -12611,7 +12730,7 @@ function initGrMap() {
 
 function grBuildPopup(g) {
   const intel=grIntel(g), cross=grCross(g), tier=grStatusTier(g.estado);
-  return `<div class="gr-map-popup"><div class="grp-head">🏗️ GRÚA · ${grEsc(g.estado||'SIN ESTADO')}</div>
+  return `<div class="gr-map-popup"><div class="grp-head">${uiIcon('tow',true)}GRÚA · ${grEsc(g.estado||'SIN ESTADO')}</div>
     <div class="grp-address">${grEsc(grAddress(g))}</div>
     <div class="grp-line"><b>Prioridad:</b> ${tier==='active'?'VIGENTE':tier==='inactive'?'NO VIGENTE':'REVISAR'}</div>
     ${intel.level?`<div class="grp-line" style="color:${intel.level==='high'?'#ef4444':intel.level==='medium'?'#FBBB0D':'#94a3b8'}"><b>${grEsc(grConflictText(intel.level))}</b>${intel.matches[0]?.distance!=null?` · ${intel.matches[0].distance} m`:''}</div>`:''}
@@ -12636,7 +12755,7 @@ function grBuildMarker(g) {
   const selected = grConflictSelectedIdx === g._idx;
   const conflictMode = grConflictSelectedIdx != null;
   const muted = conflictMode && !selected;
-  const icon=L.divIcon({className:'',iconSize:selected?[34,34]:[24,24],iconAnchor:selected?[17,17]:[12,12],html:`<div class="gr-marker ${level}${tier==='inactive'?' inactive':''}${selected?' conflict-selected':''}${muted?' conflict-muted':''}">${intel.level?'⚠':'●'}</div>`});
+  const icon=L.divIcon({className:'',iconSize:selected?[34,34]:[24,24],iconAnchor:selected?[17,17]:[12,12],html:`<div class="gr-marker ${level}${tier==='inactive'?' inactive':''}${selected?' conflict-selected':''}${muted?' conflict-muted':''}">${uiIcon(intel.level?'warning':'dot')}</div>`});
   const m=L.marker(L.latLng(lat,lng),{icon});
   if (!(m instanceof L.Marker) || !m._latlng || !Number.isFinite(m._latlng.lat) || !Number.isFinite(m._latlng.lng)) throw new TypeError(`[GRÚAS][MAPA] L.Marker inválido en Grúa ${g._idx}`);
   m._grData=g;
@@ -12654,7 +12773,7 @@ function grUpdateGeoDiagnostic(list) {
   const errors = list.filter(g=>g._geoError).length;
   const markers = grMarkers.length;
   const el=document.getElementById('gr-map-diagnostic');
-  if(el) el.innerHTML=`📦 ${loaded} &nbsp;·&nbsp; ✅ ${filtered} &nbsp;·&nbsp; 📍 ${geo} &nbsp;·&nbsp; ⚠ ${pending} &nbsp;·&nbsp; ❌ ${errors} &nbsp;·&nbsp; 🗺 ${markers}`;
+  if(el) el.innerHTML=`${uiIcon('box',true)}${loaded} · ${uiIcon('filter',true)}${filtered} · ${uiIcon('pin',true)}${geo} · ${uiIcon('warning',true)}${pending} · ${uiIcon('error',true)}${errors} · ${uiIcon('map',true)}${markers}`;
 }
 
 function grCenterMapOn(list) {
@@ -12729,7 +12848,7 @@ function updateGruasMap() {
         className:'',
         iconSize:selected?[34,34]:[24,24],
         iconAnchor:selected?[17,17]:[12,12],
-        html:`<div class="gr-marker ${level}${tier==='inactive'?' inactive':''}${selected?' conflict-selected':''}${muted?' conflict-muted':''}">${intel.level?'⚠':'●'}</div>`
+        html:`<div class="gr-marker ${level}${tier==='inactive'?' inactive':''}${selected?' conflict-selected':''}${muted?' conflict-muted':''}">${uiIcon(intel.level?'warning':'dot')}</div>`
       });
       marker.setIcon(icon);
       marker._grIconState = iconState;
@@ -12780,7 +12899,7 @@ function grBuildConflictObraPopup(o, match) {
   const motivo = match?.reason || grConflictText(match?.level) || 'Coincidencia operativa';
   const distancia = match?.distance != null ? ` · ${match.distance} m` : '';
   return `<div class="gr-map-popup">
-    <div class="grp-head">⚠ OBRA POTENCIALMENTE CONFLICTIVA</div>
+    <div class="grp-head">${uiIcon('warning',true)}OBRA POTENCIALMENTE CONFLICTIVA</div>
     <div class="grp-address">${grEsc(ubicacion)}</div>
     <div class="grp-line"><b>Tema:</b> ${grEsc(o?.tema || 'Sin dato')}</div>
     <div class="grp-line"><b>Motivo:</b> ${grEsc(motivo)}${distancia}</div>
@@ -13226,7 +13345,7 @@ async function cargarGruas() {
     grEnsureObrasIntelligence();
     grGeocodePending();
     const now=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});if(ts)ts.textContent=`${now} · ${allGruas.length} grúas`;
-    updateFooter('gruas','ok');updateFooterTs();logActivity(`${allGruas.length} grúas cargadas`,'🏗️');
+    updateFooter('gruas','ok');updateFooterTs();logActivity(`${allGruas.length} grúas cargadas`,'tow');
   }catch(e){
     if(ts)ts.textContent=`Error: ${e.message}`;updateFooter('gruas','error');
     const scroll=document.getElementById('gr-list-scroll');if(scroll)scroll.innerHTML='<div class="gr-empty"><span>No se pudieron cargar las grúas</span></div>';
@@ -13277,7 +13396,7 @@ function colScopeLabel() {
 
 function colSetDatePreset(preset) {
   colDatePreset = preset;
-  logActivity(`Filtro fecha: ${colScopeLabel()}`, '📅');
+  logActivity(`Filtro fecha: ${colScopeLabel()}`, 'calendar');
   ['today','yesterday','7d','30d','all','custom'].forEach(p => {
     const btn = document.getElementById('col-dp-' + p);
     if (btn) btn.classList.toggle('active', p === preset);
@@ -13395,16 +13514,16 @@ function renderColectivosList() {
       ? `<span class="col-badge col-badge-resuelto">✓ RESUELTO</span>`
       : `<span class="col-badge col-badge-pendiente">PENDIENTE</span>`;
     const reconsBadge = c.reconsulta
-      ? `<span class="col-badge col-badge-recons">↩ RECONSULTA</span>` : '';
+      ? `<span class="col-badge col-badge-recons">${uiIcon('back',true)}RECONSULTA</span>` : '';
     const comBadge = (c.comunicado||'').toUpperCase() === 'SI'
-      ? `<span class="col-badge col-badge-com">📢 COM.</span>` : '';
+      ? `<span class="col-badge col-badge-com">${uiIcon('announce',true)}COM.</span>` : '';
 
     const loc = [c.calle1, c.calle2 ? `y ${c.calle2}` : ''].filter(Boolean).join(' ');
     html += `<div class="col-card">
       <div class="col-card-accent" style="background:${color}"></div>
       <div class="col-card-inner">
         <div class="col-card-top">
-          <span class="col-card-type">🚌 Línea ${colEsc(c.linea||'—')}</span>
+          <span class="col-card-type">${uiIcon('bus',true)}Línea ${colEsc(c.linea||'—')}</span>
           <div class="col-card-badges">${resBadge}${reconsBadge}${comBadge}</div>
         </div>
         <div class="col-card-street">${colEsc(loc || 'Sin dirección')}</div>
@@ -13432,7 +13551,7 @@ function _colBuildPopup(c) {
   const color = colAccentColor(c);
   const loc   = [c.calle1, c.calle2 ? `y ${c.calle2}` : ''].filter(Boolean).join(' ') || 'Sin dirección';
   return `<div style="min-width:200px;font-family:Inter,sans-serif;font-size:12px">
-    <div style="color:${color};font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px">🚌 LÍNEA ${colEsc(c.linea||'—')}</div>
+    <div style="color:${color};font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px">${uiIcon('bus',true)}LÍNEA ${colEsc(c.linea||'—')}</div>
     <div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#fff;margin-bottom:4px">${colEsc(loc)}</div>
     ${c.motivo ? `<div style="color:#888;font-size:10px;margin-bottom:2px"><b style="color:#aaa">Motivo:</b> ${colEsc(c.motivo)}</div>` : ''}
     ${c.area   ? `<div style="color:#888;font-size:10px;margin-bottom:2px"><b style="color:#aaa">Área:</b> ${colEsc(c.area)}</div>` : ''}
@@ -13446,11 +13565,11 @@ function _colBuildPopup(c) {
 // ── Marker completo (≤ COL_THRESHOLD_SAFETY) ─
 function _colBuildMarker(c) {
   const color   = colAccentColor(c);
-  const emoji   = (c.resuelto||'').toUpperCase() === 'SI' ? '✓' : '🚌';
+  const glyphName   = (c.resuelto||'').toUpperCase() === 'SI' ? 'check' : 'bus';
   const icon    = L.divIcon({
     className: '',
     iconSize: [22, 22], iconAnchor: [11, 11],
-    html: `<div style="width:22px;height:22px;background:${color};border-radius:4px;border:2px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 0 6px ${color}55">${emoji}</div>`,
+    html: `<div style="width:22px;height:22px;background:${color};border-radius:4px;border:2px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 0 6px ${color}55">${uiIcon(glyphName)}</div>`,
   });
   const m = L.marker([c.lat, c.lng], { icon });
   m._colData = c;
@@ -13496,7 +13615,7 @@ function colUpdateMapStatus(filtered, placed, safetyMode) {
   if (nEl) nEl.textContent = placed;
   if (fEl) fEl.textContent = filtered;
   if (mEl) {
-    if (safetyMode)               mEl.textContent = '⚠ MODO SEGURIDAD';
+    if (safetyMode)               uiSetIconLabel(mEl, 'warning', 'MODO SEGURIDAD');
     else if (filtered > COL_THRESHOLD_ADVISORY) mEl.textContent = 'MODO CLUSTER';
     else                          mEl.textContent = 'MODO NORMAL';
   }
@@ -13836,7 +13955,7 @@ async function cargarColectivos() {
     const now = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
     if (ts) ts.textContent = `${now} · ${allColectivos.length} solicitudes`;
     updateFooter('sol', 'ok'); updateFooterTs();
-    logActivity(`${allColectivos.length} solicitudes cargadas`, '📋');
+    logActivity(`${allColectivos.length} solicitudes cargadas`, 'clipboard');
   } catch(e) {
     if (ts) ts.textContent = `Error: ${e.message}`;
     updateFooter('sol', 'error');
@@ -14971,7 +15090,7 @@ async function dvToggleSigns(enabled){
       const fields=['Referencia','Descripción','Calle','Carteles','Agregado a mano'];
       const rows=fields.filter(k=>props[k]!==undefined&&props[k]!==null&&String(props[k]).trim())
         .map(k=>'<strong>'+dvEscape(k)+'</strong>: '+dvEscape(String(props[k]))).join('<br>');
-      marker.bindPopup('<strong>🚧 '+dvEscape(String(props.nombre||'Cartelería'))+'</strong><div style="margin-top:5px;max-height:230px;overflow:auto">'+rows+'</div>');
+      marker.bindPopup('<strong>'+uiIcon('barrier',true)+dvEscape(String(props.nombre||'Cartelería'))+'</strong><div style="margin-top:5px;max-height:230px;overflow:auto">'+rows+'</div>');
       records.push({marker,kind});
     }
     dvSignsLayer=layer;dvSignsRecords=records;
@@ -15247,7 +15366,7 @@ async function dvToggleSpecial(enabled){
       if(!coords)continue;
       const marker=L.marker(coords,{icon});
       const link=dvSpecialItemUrl(item);
-      marker.bindPopup('<strong>'+dvEscape(item.title)+'</strong><br>'+dvEscape(item.description)+'<br><em>⚠ Punto de referencia aproximado; consultar ubicación original.</em><br><a href="'+link+'" target="_blank" rel="noopener noreferrer">Ver en Maps</a>');
+      marker.bindPopup('<strong>'+dvEscape(item.title)+'</strong><br>'+dvEscape(item.description)+'<br><em>'+uiIcon('warning',true)+'Punto de referencia aproximado; consultar ubicación original.</em><br><a href="'+link+'" target="_blank" rel="noopener noreferrer">Ver en Maps</a>');
       dvSpecialGroup.addLayer(marker);located++;
     }
     dvSetText('dv-special-status',items.length+' referencias · '+located+' marcadores orientativos · '+(idx+1)+'/'+byQuery.length+' ubicaciones consultadas');
@@ -16089,7 +16208,13 @@ function plRender(){
   document.getElementById('pl-news-count').textContent=String(news.length);
   const cards=[['Programados',agenda.length],['Novedades',news.length],['Críticos',agenda.concat(news).filter(e=>e.level==='critical').length],['Alta prioridad',agenda.concat(news).filter(e=>e.level==='high').length]];
   document.getElementById('pl-summary').innerHTML=cards.map(([label,n])=>`<div class="pl-stat"><span>${plEsc(label)}</span><b>${n}</b></div>`).join('');
-  const html=(arr,cls)=>arr.length?arr.map((e,i)=>`<article class="pl-item ${cls}" ${e.coords?'onclick="plFocus('+plEsc(e.coords[0])+','+plEsc(e.coords[1])+')" style="cursor:pointer"':''}><div class="pl-item-top"><span class="pl-tag">${plEsc(e.type)}</span><span class="pl-time">${plEsc(e.time)}</span></div><div class="pl-priority ${e.level}">${{critical:'● CRÍTICA',high:'● ALTA',medium:'● MEDIA',info:'● INFORMATIVA'}[e.level]} · ${plEsc(e.reason)}</div><h4>${plEsc(e.title)}</h4><p>${plEsc(e.desc)}</p><p class="pl-ref">${plEsc(e.ref)}${e.coords?' · 📍 Mapeado':' · Ubicación no verificada'}</p>${e.sub?`<p class="pl-ref">${plEsc(e.sub)}</p>`:''}</article>`).join(''):'<div class="pl-empty">No se encontraron registros para esta fecha y filtros.<br>Esto no garantiza que no existan actuaciones pendientes.</div>';
+  const sourceIcons={obras:'barrier',gruas:'tow',operativa:'incident',solicitudes:'clipboard',semaforos:'signal',desvios:'detour'};
+  const html=(arr,cls)=>arr.length?arr.map(e=>`<article class="pl-item ${cls}" ${e.coords?'onclick="plFocus('+plEsc(e.coords[0])+','+plEsc(e.coords[1])+')" style="cursor:pointer"':''}>
+    <div class="pl-item-top"><span class="pl-tag">${uiIcon(sourceIcons[e.source]||'calendar',true)}${plEsc(e.type)}</span><span class="pl-time">${plEsc(e.time)}</span></div>
+    <div class="pl-priority ${e.level}">${uiIcon('dot',true)}${{critical:'CRÍTICA',high:'ALTA',medium:'MEDIA',info:'INFORMATIVA'}[e.level]} · ${plEsc(e.reason)}</div>
+    <h4>${plEsc(e.title)}</h4><p>${plEsc(e.desc)}</p>
+    <p class="pl-ref">${plEsc(e.ref)} · ${e.coords?uiIcon('pin',true)+'Mapeado':'Ubicación no verificada'}</p>
+    ${e.sub?`<p class="pl-ref">${plEsc(e.sub)}</p>`:''}</article>`).join(''):'<div class="pl-empty">No se encontraron registros para esta fecha y filtros.<br>Esto no garantiza que no existan actuaciones pendientes.</div>';
   document.getElementById('pl-agenda').innerHTML=html(agenda,'programada');
   document.getElementById('pl-news').innerHTML=html(news,'novedad');
   const visible=agenda.concat(news);
@@ -16290,7 +16415,9 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       const details=make('details','dv2-panel');
       if(open)details.open=true;
       const summary=make('summary','');
-      summary.appendChild(make('span','dv2-panel-icon',icon));
+      const pictogram=make('span','dv2-panel-icon');
+      pictogram.innerHTML=uiIcon(icon);
+      summary.appendChild(pictogram);
       const label=make('span','dv2-panel-title');
       label.appendChild(make('b','',title));
       label.appendChild(make('small','',description));
@@ -16302,7 +16429,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       side.appendChild(details);
       return body;
     }
-    const routes=panel('🚌','Recorridos y cortes','Líneas, sentido y ficha',true);
+    const routes=panel('detour','Recorridos y cortes','Líneas, sentido y ficha',true);
     [
       $('dv-layer-list'),
       $('dv-arrows-toggle')?.closest('label'),
@@ -16317,17 +16444,17 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     move(technical,$('dv-meta'));
     routes.appendChild(technical);
 
-    const stops=panel('📍','Paradas y señalización','Anuladas y provisorias',true);
+    const stops=panel('pin','Paradas y señalización','Anuladas y provisorias',true);
     const stopsParent = side.querySelector('.dv-stop-layer-control:not(#dv-special-control)');
     move(stops,stopsParent);
 
-    const traffic=panel('🚦','Congestión','TomTom Traffic Flow',false);
+    const traffic=panel('traffic','Congestión','TomTom Traffic Flow',false);
     move(traffic,$('dv-traffic-control'));
 
-    const rail=panel('🚇','Transporte guiado','Subte, Premetro y trenes · Papa 2026',false);
+    const rail=panel('train','Transporte guiado','Subte, Premetro y trenes · Papa 2026',false);
     move(rail,$('dv-rail-control'));
 
-    const signs=panel('🚧','Cartelería operativa','Señales y croquis de escenario',false);
+    const signs=panel('barrier','Cartelería operativa','Señales y croquis de escenario',false);
     move(signs,$('dv-sign-section'));
 
 
@@ -16343,8 +16470,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       const countLabel = make('span','dv2-ribbon-count','');
       labelWrap.appendChild(countLabel);
       const navigation = make('div','dv2-ribbon-nav');
-      const back = make('button','dv2-ribbon-arrow','‹');
-      const forward = make('button','dv2-ribbon-arrow','›');
+      const back = make('button','dv2-ribbon-arrow');
+      back.innerHTML=uiIcon('left');
+      const forward = make('button','dv2-ribbon-arrow');
+      forward.innerHTML=uiIcon('right');
       for (const btn of [back,forward]) btn.type='button';
       back.title='Mostrar líneas anteriores';
       forward.title='Mostrar más líneas';
@@ -16382,7 +16511,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
     // Presentación / mapa ampliado: sin cambiar ni recargar ninguna capa.
     const actions=make('div','dv2-map-actions');
-    const focus=make('button','dv2-map-mode','⛶  Ampliar mapa');
+    const focus=make('button','dv2-map-mode');
+    uiSetIconLabel(focus,'expand','Ampliar mapa');
     focus.type='button';focus.id='dv2-map-mode';focus.setAttribute('aria-pressed','false');
     focus.setAttribute('title','Mostrar solo el mapa, sin paneles. Esc para volver.');
     actions.appendChild(focus);
@@ -16398,7 +16528,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     }
     function focusMode(on) {
       view.classList.toggle('dv2-map-focus',on);
-      focus.textContent=on?'↙  Volver a paneles':'⛶  Ampliar mapa';
+      uiSetIconLabel(focus,on?'collapse':'expand',on?'Volver a paneles':'Ampliar mapa');
       focus.setAttribute('aria-pressed',String(on));
       // Los controles siguen en el DOM y conservan sus estados.
       requestAnimationFrame(invalidateMap);
@@ -16449,7 +16579,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     btn.setAttribute('aria-label',focused?'Volver a mostrar los paneles operativos':'Ampliar el mapa operativo');
     btn.title=focused?'Volver a los paneles (Esc)':'Ampliar mapa (Esc para volver)';
     var label=document.getElementById('op21-focus-label');if(label)label.textContent=focused?'Volver a paneles':'Ampliar mapa';
-    var icon=btn.querySelector('.op21-focus-icon');if(icon)icon.textContent=focused?'↙':'⛶';
+    var icon=btn.querySelector('.op21-focus-icon');if(icon)uiSetIconLabel(icon,focused?'collapse':'expand');
     refreshMap();
   };
   window.op21ToggleFocus=function(){
@@ -16494,6 +16624,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     if(btn){btn.setAttribute('aria-pressed',String(active));
       const name=btn.querySelector('.dc22-focus-label');
       if(name)name.textContent=active?'Restaurar paneles':'Ampliar mapa';
+      btn.querySelector('.ui-icon use')?.setAttribute('href',active?'#ui-collapse':'#ui-expand');
       btn.title=active?'Restaurar paneles (Esc)':'Ampliar mapa y ocultar los paneles secundarios';
     }
     repaint(tab);
@@ -16524,6 +16655,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     if(!view||!button)return;
     view.classList.toggle(cfg.activeClass,!!active);
     button.setAttribute('aria-pressed',String(!!active));
+    button.querySelector('.ui-icon use')?.setAttribute('href',active?'#ui-collapse':'#ui-expand');
     button.title=active?'Volver a mostrar paneles (Esc)':'Ampliar mapa (Esc para volver)';
     const label=button.querySelector('span');if(label)label.textContent=active?'Restaurar':'Ampliar mapa';
     refresh(cfg);
@@ -16596,10 +16728,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 <!-- SUPERVISOR 2.8 · Buscador universal -->
 <div id="sup28-search-overlay" aria-hidden="true" role="presentation">
  <section id="sup28-search-modal" role="dialog" aria-modal="true" aria-label="Buscador universal del Supervisor">
-  <div class="sup28-search-head"><input id="sup28-search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Buscar calle, intersección, línea, expediente, ID…" aria-label="Buscar en todas las fuentes"/><button id="sup28-search-close" class="sup28-dismiss" type="button" aria-label="Cerrar búsqueda">✕</button></div>
+  <div class="sup28-search-head"><input id="sup28-search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Buscar calle, intersección, línea, expediente, ID…" aria-label="Buscar en todas las fuentes"/><button id="sup28-search-close" class="sup28-dismiss" type="button" aria-label="Cerrar búsqueda"><svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"/></svg></button></div>
   <div id="sup28-search-note" role="status">Buscando fuentes…</div>
   <div id="sup28-search-results"><div class="sup28-empty">Escribí para buscar.</div></div>
-  <div class="sup28-search-actions"><span>Ctrl+K para abrir · Esc para cerrar · Fuentes y coordenadas pueden cargarse progresivamente</span><button id="sup28-search-load" type="button">↻ Completar fuentes</button></div>
+  <div class="sup28-search-actions"><span>Ctrl+K para abrir · Esc para cerrar · Fuentes y coordenadas pueden cargarse progresivamente</span><button id="sup28-search-load" type="button"><svg class="ui-icon ui-icon--label" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-refresh"/></svg>Completar fuentes</button></div>
  </section>
 </div>
 
@@ -16624,7 +16756,7 @@ const coord=o=>{
 };
 const day=(v)=>{if(typeof plDateKey==='function')return plDateKey(v);return '';};
 const today=()=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));return parts.year+'-'+parts.month+'-'+parts.day;};
-const statuses=[{type:'sucesos',name:'Sucesos',icon:'🚨',tab:'home',weight:13},{type:'congestion',name:'Congestión',icon:'🚗',tab:'home',weight:9},{type:'semaforos',name:'Semáforos',icon:'🚦',tab:'home',weight:12},{type:'obras',name:'Obras',icon:'🚧',tab:'obras',weight:7},{type:'gruas',name:'Grúas · hoy a +7 días',icon:'🏗️',tab:'gruas',weight:6},{type:'solicitudes',name:'Solicitudes de hoy',icon:'📋',tab:'colectivos',weight:5}];
+const statuses=[{type:'sucesos',name:'Sucesos',icon:'incident',tab:'home',weight:13},{type:'congestion',name:'Congestión',icon:'traffic',tab:'home',weight:9},{type:'semaforos',name:'Semáforos',icon:'signal',tab:'home',weight:12},{type:'obras',name:'Obras',icon:'barrier',tab:'obras',weight:7},{type:'gruas',name:'Grúas · hoy a +7 días',icon:'tow',tab:'gruas',weight:6},{type:'solicitudes',name:'Solicitudes de hoy',icon:'clipboard',tab:'colectivos',weight:5}];
 const byType=Object.fromEntries(statuses.map(x=>[x.type,x]));
 // Congestión y Sucesos provienen de la misma planilla: no son fuentes independientes.
 const sourceGroup=type=>type==='congestion'?'operativa':type==='sucesos'?'operativa':type;
@@ -17159,7 +17291,7 @@ function sup287SetFocus(point){
  if(!point||!Number.isFinite(point.lat)||!Number.isFinite(point.lng))return;
  sup287Focused={...point,focusKey:point.type+'|'+point.title+'|'+point.lat.toFixed(5)+'|'+point.lng.toFixed(5)};
  sup287PlanningNextClick=false;
- const btn=$('sup287-plan-point');if(btn){btn.setAttribute('aria-pressed','false');btn.textContent='📍 Marcar punto de estudio';}
+ const btn=$('sup287-plan-point');if(btn){btn.setAttribute('aria-pressed','false');uiSetIconLabel(btn,'pin','Marcar punto de estudio');}
  $('sup287-focus-query').value=point.type==='planificacion'?'Punto de estudio':point.title;
  $('sup287-focus-results').hidden=true;
  $('sup287-focus-query').setAttribute('aria-expanded','false');
@@ -17167,7 +17299,7 @@ function sup287SetFocus(point){
 }
 function sup287ClearFocus(){
  sup287Focused=null;sup287PlanningNextClick=false;
- const btn=$('sup287-plan-point');if(btn){btn.setAttribute('aria-pressed','false');btn.textContent='📍 Marcar punto de estudio';}
+ const btn=$('sup287-plan-point');if(btn){btn.setAttribute('aria-pressed','false');uiSetIconLabel(btn,'pin','Marcar punto de estudio');}
  $('sup287-focus-query').value='';$('sup287-focus-results').hidden=true;
  $('sup287-focus-query').setAttribute('aria-expanded','false');
  if(sup287FocusLayer)sup287FocusLayer.clearLayers();
@@ -17238,7 +17370,7 @@ $('sup287-close-object')?.addEventListener('click',sup287ClearFocus);
 $('sup287-plan-point')?.addEventListener('click',()=>{
  sup287PlanningNextClick=!sup287PlanningNextClick;
  $('sup287-plan-point').setAttribute('aria-pressed',String(sup287PlanningNextClick));
- $('sup287-plan-point').textContent=sup287PlanningNextClick?'Clic en el mapa para marcar…':'📍 Marcar punto de estudio';
+ uiSetIconLabel($('sup287-plan-point'),'pin',sup287PlanningNextClick?'Clic en el mapa para marcar…':'Marcar punto de estudio');
  if(radarMap)radarMap.getContainer().style.cursor=sup287PlanningNextClick?'crosshair':'';
 });
 $('sup287-focus-results')?.addEventListener('click',e=>{const btn=e.target.closest('[data-sup287-record]');if(btn){const p=radarPoints[Number(btn.dataset.sup287Record)];if(p)sup287SetFocus(p);}});
@@ -17304,7 +17436,7 @@ function radarPin(p){
  const color=SOURCE_COLORS[p.type]||'#e9eef2';
  return L.marker([p.lat,p.lng],{icon:L.divIcon({
    className:'sup282-pin-wrap',iconSize:[25,25],iconAnchor:[12,12],
-   html:'<span class="sup282-pin" style="--pin:'+color+';'+(p.contextOnly?'opacity:.48;filter:grayscale(.55);':'')+'">'+escapeHtml(byType[p.type]?.icon||'•')+'</span>'
+   html:'<span class="sup282-pin" style="--pin:'+color+';'+(p.contextOnly?'opacity:.48;filter:grayscale(.55);':'')+'">'+uiIcon(byType[p.type]?.icon||'dot')+'</span>'
  })}).bindTooltip(escapeHtml(byType[p.type]?.name||p.type)+' · '+escapeHtml(p.title)+(p.type==='gruas'?' · '+escapeHtml(grRadarStatus(p.src))+' · '+escapeHtml(grRadarDate(p.src))+(p.contextOnly?' · NO VIGENTE':''):''),{direction:'top'}).on('click',()=>sup287SetFocus(p));
 }
 function radarCluster(type){
@@ -17436,7 +17568,7 @@ function sup287SetMode(mode){
 const ziSelected=z=>zones[radarSelected]===z;
 function zoneDetail(z){
  const sorted=z.items.slice().sort((a,b)=>(byType[b.type]?.weight||0)-(byType[a.type]?.weight||0));
- return sorted.map(p=>`<div class="sup28-zone-record"><div><b>${escapeHtml(byType[p.type]?.icon||'')}&nbsp;${escapeHtml(p.title)}</b><span>${escapeHtml(p.label)} · ${escapeHtml(p.detail)} · ${Math.round(distance(z,p))} m del centro</span></div><div class="sup287-case-actions"><button type="button" data-radar-case="${p.id}">Ubicar</button><button type="button" class="sup287-case-focus" data-sup287-record="${p.id}">Enfocar</button></div></div>`).join('');
+ return sorted.map(p=>`<div class="sup28-zone-record"><div><b>${uiIcon(byType[p.type]?.icon,true)}${escapeHtml(p.title)}</b><span>${escapeHtml(p.label)} · ${escapeHtml(p.detail)} · ${Math.round(distance(z,p))} m del centro</span></div><div class="sup287-case-actions"><button type="button" data-radar-case="${p.id}">${uiIcon('target',true)}Ubicar</button><button type="button" class="sup287-case-focus" data-sup287-record="${p.id}">${uiIcon('search',true)}Enfocar</button></div></div>`).join('');
 }
 // Estado de acordeones persistente en cada recálculo, sin exigir almacenamiento remoto.
 const sup286Groups=['critical','high','medium','low'];
@@ -17464,21 +17596,21 @@ function drawZoneList(){
   const section=document.createElement('details');
   section.className='sup286-group sup286-group-'+level;section.dataset.sup286Group=level;
   section.open=sup286OpenGroups[level];
-  const summary=document.createElement('summary');summary.innerHTML=`<span class="sup286-group-label"><i class="sup286-group-dot"></i>${sup286Labels[level]}</span><span class="sup286-group-count">${entries.length} zonas <span aria-hidden="true">⌄</span></span>`;
+  const summary=document.createElement('summary');summary.innerHTML=`<span class="sup286-group-label"><i class="sup286-group-dot"></i>${sup286Labels[level]}</span><span class="sup286-group-count">${entries.length} zonas ${uiIcon('down')}</span>`;
   section.append(summary);
   const content=document.createElement('div');content.className='sup286-group-content';
   for(const z of entries){
    const zi=zones.indexOf(z),p=z.pressure,metric=sup287Metric(z),elem=document.createElement('article');
    elem.className='sup28-zone'+(zi===radarSelected?' selected':'');elem.dataset.zone=zi;elem.setAttribute('tabindex','0');
-   elem.innerHTML=`<div class="sup28-zonehead"><div class="sup28-zone-name">${escapeHtml(z.name)}</div><span class="sup28-level ${metric.level}">${sup286Singular[metric.level]} · ${metric.score}</span></div>`+
+   elem.innerHTML=`<div class="sup28-zonehead"><div class="sup28-zone-name">${uiIcon('zone',true)}${escapeHtml(z.name)}</div><span class="sup28-level ${metric.level}">${sup286Singular[metric.level]} · ${metric.score}</span></div>`+
       `<div class="sup28-zonesub">${z.items.length} registros exclusivos · ${z.independent} fuentes · ${z.radius} m</div>`+
-      `<div class="sup285-zone-flag">◈ Sector exclusivo · ${z.barrio?'Barrio verificado':'Barrio por verificar'}</div>`+
+      `<div class="sup285-zone-flag">${uiIcon('zone',true)}Sector exclusivo · ${z.barrio?'Barrio verificado':'Barrio por verificar'}</div>`+
       `<div class="sup286-signature">${escapeHtml(p.signature)} · ${p.grPending} grúa${p.grPending===1?'':'s'} pendiente${p.grPending===1?'':'s'} · ${p.grAccepted} confirmada${p.grAccepted===1?'':'s'}</div>`+
       sup286PressureHTML(p)+
       `<div class="sup286-reading">${escapeHtml(sup287Note(z))}</div>`+
       `<div class="sup283-card-metrics"><div class="sup283-card-metric"><b>${z.analysis.events}</b><small>Sucesos + fallas</small></div><div class="sup283-card-metric"><b>${z.analysis.interventions}</b><small>Obras + grúas (+7d)</small></div><div class="sup283-card-metric congestion ${z.analysis.congestion?'has-data':''}"><b>${z.analysis.congestion}</b><small>Congestiones</small></div></div>`+
       `<div class="sup28-tags">${[...z.types].map(([type,it])=>`<span>${escapeHtml(byType[type].name)} ${it.length}</span>`).join('')}</div>`+
-      `<div class="sup28-zone-details"><button type="button" class="sup28-expand" aria-expanded="${zi===radarSelected}">${zi===radarSelected?'Ocultar':'Investigar zona / Ver'} evidencias concretas</button><div class="sup28-records">${zi===radarSelected?zoneDetail(z):''}</div></div>`;
+      `<div class="sup28-zone-details"><button type="button" class="sup28-expand" aria-expanded="${zi===radarSelected}">${uiIcon(zi===radarSelected?'down':'evidence',true)}${zi===radarSelected?'Ocultar':'Investigar zona / Ver'} evidencias concretas</button><div class="sup28-records">${zi===radarSelected?zoneDetail(z):''}</div></div>`;
    content.append(elem);
   }
   section.append(content);list.append(section);
@@ -17517,13 +17649,13 @@ function renderSelectedZone(focus){
  $('sup281-inspector-title').textContent=z.name+' · '+SUP287_MODE_LABELS[sup287Mode];
  const rel=zoneRelations(z);
  const grContext=grRadarNearbyContext(z); // contexto sin vigencia, NO puntúa ni genera relaciones
- $('sup281-inspector-meta').innerHTML=`<b>${z.items.length} registros</b> · ${z.independent} fuentes independientes · radio ${z.radius} m · <b>${z.level==='critical'?'Crítica':z.level==='high'?'Alta':'Atención'} (${z.score})</b><div>${escapeHtml(z.reason.join(' · '))}</div><div class="sup283-analysis-note">🚨 ${z.analysis.events} sucesos/fallas · 🚧 ${z.analysis.interventions} obras/grúas (+7d) · 🚗 ${z.analysis.congestion} congestiones registradas · 📋 ${z.analysis.requests} solicitudes de hoy. TomTom es solo contexto.${grContext.length?' · '+grContext.length+' grúas no vigentes visibles para consulta, sin sumar prioridad':''}</div>`;
- $('sup281-inspector-meta').insertAdjacentHTML('beforeend',`<div class="sup286-inspector-pressure">${sup286PressureHTML(z.pressure)}<div class="sup286-reading">${escapeHtml(z.pressure.message)}</div><div class="sup286-grua-stats">🚛 Grúas a +7 días: <b>${z.pressure.cranes}</b> · pendientes/propuestas: <b>${z.pressure.grPending}</b> · aceptadas: <b>${z.pressure.grAccepted}</b> · próximas 48h: <b>${z.pressure.grNear48}</b> · con coincidencias a menos de 250m: <b>${z.pressure.grConflicts}</b> · próximas a obras: <b>${z.pressure.grWorkConflicts}</b></div><small>Lectura orientativa para revisión humana; proximidad no confirma conflicto, no autoriza ni rechaza una grúa.</small></div>`);
+ $('sup281-inspector-meta').innerHTML=`<b>${z.items.length} registros</b> · ${z.independent} fuentes independientes · radio ${z.radius} m · <b>${z.level==='critical'?'Crítica':z.level==='high'?'Alta':'Atención'} (${z.score})</b><div>${escapeHtml(z.reason.join(' · '))}</div><div class="sup283-analysis-note">${uiIcon('incident',true)}${z.analysis.events} sucesos/fallas · ${uiIcon('barrier',true)}${z.analysis.interventions} obras/grúas (+7d) · ${uiIcon('traffic',true)}${z.analysis.congestion} congestiones registradas · ${uiIcon('clipboard',true)}${z.analysis.requests} solicitudes de hoy. TomTom es solo contexto.${grContext.length?' · '+grContext.length+' grúas no vigentes visibles para consulta, sin sumar prioridad':''}</div>`;
+ $('sup281-inspector-meta').insertAdjacentHTML('beforeend',`<div class="sup286-inspector-pressure">${sup286PressureHTML(z.pressure)}<div class="sup286-reading">${escapeHtml(z.pressure.message)}</div><div class="sup286-grua-stats">${uiIcon('tow',true)}Grúas a +7 días: <b>${z.pressure.cranes}</b> · pendientes/propuestas: <b>${z.pressure.grPending}</b> · aceptadas: <b>${z.pressure.grAccepted}</b> · próximas 48h: <b>${z.pressure.grNear48}</b> · con coincidencias a menos de 250m: <b>${z.pressure.grConflicts}</b> · próximas a obras: <b>${z.pressure.grWorkConflicts}</b></div><small>Lectura orientativa para revisión humana; proximidad no confirma conflicto, no autoriza ni rechaza una grúa.</small></div>`);
  const deviations=sampleDiversionContext(z);
  $('sup281-inspector-relations').innerHTML='<strong>RELACIONES ESPACIALES · '+rel.pairs.length+'</strong>'+(rel.groups.length?rel.groups.slice(0,12).map(g=>`<div class="sup281-inspector-rel"><span>${escapeHtml(byType[g.types[0]]?.name||g.types[0])} ↔ ${escapeHtml(byType[g.types[1]]?.name||g.types[1])} · ${g.n} cercanías</span><b>mín. ${g.min} m</b></div>`).join(''):'<div class="sup281-inspector-rel">Sin vínculos cruzados dentro del radio seleccionado.</div>')+(deviations.length?'<div class="sup281-inspector-rel">GEOMETRÍAS QGIS DE CONTEXTO: '+deviations.length+' (vigencia no confirmada)</div>'+deviations.slice(0,5).map(d=>'<div class="sup281-inspector-rel">↪ '+escapeHtml(d.name)+'</div>').join(''):'');
  $('sup281-evidence-count').textContent=z.items.length+grContext.length;
  const sort=[...z.items,...grContext].sort((a,b)=>(!!a.contextOnly)-(!!b.contextOnly)||(byType[b.type]?.weight||0)-(byType[a.type]?.weight||0));
- $('sup281-inspector-evidences').innerHTML=sort.map(p=>`<div class="sup281-evidence"><i class="sup281-evidence-dot" style="background:${SOURCE_COLORS[p.type]||'#fff'}"></i><div class="sup281-evidence-body"><b>${escapeHtml(byType[p.type]?.name||p.type)} · ${escapeHtml(p.title)}</b><small>${p.contextOnly?'⚪ CONTEXTO SIN VIGENCIA · ':''}${escapeHtml(p.detail)}${p.type==='gruas'&&!p.contextOnly?' · '+sup286CraneConflicts(p,z.items).nearby.length+' coincidencias ≤250m':''} · ${Math.round(distance(z,p))} m del centro</small></div><button type="button" data-sup281-evidence="${p.id}">Ubicar</button><button type="button" data-sup287-record="${p.id}">Foco</button><button type="button" data-sup281-original="${p.id}">↗</button></div>`).join('');
+ $('sup281-inspector-evidences').innerHTML=sort.map(p=>`<div class="sup281-evidence"><i class="sup281-evidence-dot" style="background:${SOURCE_COLORS[p.type]||'#fff'}"></i><div class="sup281-evidence-body"><b>${escapeHtml(byType[p.type]?.name||p.type)} · ${escapeHtml(p.title)}</b><small>${p.contextOnly?uiIcon('info',true)+'CONTEXTO SIN VIGENCIA · ':''}${escapeHtml(p.detail)}${p.type==='gruas'&&!p.contextOnly?' · '+sup286CraneConflicts(p,z.items).nearby.length+' coincidencias ≤250m':''} · ${Math.round(distance(z,p))} m del centro</small></div><button type="button" data-sup281-evidence="${p.id}">Ubicar</button><button type="button" data-sup287-record="${p.id}">Foco</button><button type="button" data-sup281-original="${p.id}">${uiIcon('external')}</button></div>`).join('');
  const outline=COLOR[sup287Metric(z).level];
  if(sup287VisualInset(z)?.length>=3)L.polygon(sup287VisualInset(z),{weight:3,color:outline,fillColor:outline,fillOpacity:.07,dashArray:'7 4',opacity:1,interactive:false}).addTo(radarDetailLayer);
  // Vinculaciones explícitas, solo entre fuentes distintas y hasta el radio permitido.
@@ -17625,7 +17757,7 @@ window.switchTab=function(tab,btn){
    document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
    $('view-radar')?.classList.add('active');
    $('sup28-header-home')?.classList.add('active');
-   $('bc-tab').textContent='📡 Análisis Operativo · Radar operativo';
+    uiSetIconLabel($('bc-tab'),'radar','Análisis Operativo · Radar operativo');
    for(const id of ['bc-sep1','bc-sep2','bc-ctx1','bc-ctx2']){const el=$(id);if(el)el.style.display='none';}
    updateSubtabs();openRadar();return;
  }
@@ -17677,7 +17809,7 @@ function renderSearch(){
  for(const r of matching){
   const row=document.createElement('div');row.className='sup28-search-row';
   const type=byType[r.type];const desc=r.detail.length>220?r.detail.slice(0,217)+'…':r.detail;
-  row.innerHTML=`<div><b>${escapeHtml(type?.icon||'🚌')} ${escapeHtml(r.title)}</b><span>${escapeHtml(type?.name||'Desvíos')} · ${escapeHtml(desc)} · ${r.coords?'📍 Ubicado':'Sin coordenadas'}</span></div><button type="button" data-search-index="${r.key}">${r.coords?'Ir al mapa':'Abrir módulo'}</button>`;
+  row.innerHTML=`<div><b>${uiIcon(type?.icon||'bus',true)}${escapeHtml(r.title)}</b><span>${escapeHtml(type?.name||'Desvíos')} · ${escapeHtml(desc)} · ${r.coords?uiIcon('pin',true)+'Ubicado':'Sin coordenadas'}</span></div><button type="button" data-search-index="${r.key}">${r.coords?'Ir al mapa':'Abrir módulo'}</button>`;
   list.appendChild(row);
  }
 }
