@@ -7884,6 +7884,7 @@ const congestionMedida = (() => {
       return;
     }
     map = L.map('cm-map',{maxZoom:20}).setView([-34.612,-58.438],14);
+    map._cmBaseStatus = status;
     applyBaseTile(map);
     lines = L.layerGroup().addTo(map);
     map.on('movestart',() => { initialFramePending = false; });
@@ -10856,6 +10857,47 @@ function setMapStyle(style){
     .find(m=>m&&m.getContainer()?.closest('.view.active'));
   if(activeMap)dc25ApplyStyle(activeMap,style);
 }
+function cmWatchDarkBaseTiles(map, layer, id, candidates, index){
+  const status=map._cmBaseStatus;
+  const candidate=candidates[index];
+  const tiles=new Map();
+  const showStatus=text=>{
+    status.textContent=text;
+    status.hidden=!text;
+  };
+  if(index)showStatus('Stadia sin mosaicos visibles · Cargando respaldo CARTO Dark Matter');
+  layer.on('tileload',({tile,coords})=>tiles.set(tile,{coords,loaded:true}));
+  layer.on('tileerror',({tile,coords})=>tiles.set(tile,{coords,loaded:false}));
+  layer.on('tileunload tileabort',({tile})=>tiles.delete(tile));
+  layer.on('load',()=>{
+    // Esperar a que Leaflet termine el ciclo antes de retirar la capa actual.
+    queueMicrotask(()=>{
+      if(baseLayers[id]!==layer||layer.isLoading())return;
+      const zoom=Math.min(Math.round(map.getZoom()),candidate.maxNativeZoom);
+      const bounds=map.getBounds();
+      const nw=map.project(bounds.getNorthWest(),zoom);
+      const se=map.project(bounds.getSouthEast(),zoom);
+      const size=layer.getTileSize();
+      let visibleFailures=0;
+      for(const {coords,loaded} of tiles.values()){
+        const x=coords.x*size.x,y=coords.y*size.y;
+        if(coords.z!==zoom||x>=se.x||y>=se.y||x+size.x<=nw.x||y+size.y<=nw.y)continue;
+        if(loaded){
+          showStatus(index?'Mapa base · CARTO Dark Matter (respaldo por falla de Stadia)':'');
+          return;
+        }
+        visibleFailures++;
+      }
+      if(visibleFailures>=2 && index+1<candidates.length){
+        console.warn('[Congestión medida] Stadia sin mosaicos visibles. Se activa CARTO Dark Matter.',{mosaicosFallidos:visibleFailures});
+        map._dc26ProviderIndex=index+1;
+        applyBaseTile(map);
+      }else if(visibleFailures){
+        showStatus(index?'Mapa base no disponible · Fallaron Stadia y CARTO':'Stadia sin mosaicos visibles · Revisá la conexión');
+      }
+    });
+  });
+}
 function applyBaseTile(map){
   if(!map||typeof L==='undefined')return;
   const id=map._leaflet_id;
@@ -10872,9 +10914,18 @@ function applyBaseTile(map){
   const candidates=MAP_TILES[style]||MAP_TILES.dark;
   const index=Math.min(map._dc26ProviderIndex||0,candidates.length-1);
   const candidate=candidates[index];
+  const watchDarkTiles=style==='dark' && map._cmBaseStatus;
+  if(map._cmBaseStatus){
+    container.dataset.baseMapProvider=candidate.provider;
+    map._cmBaseStatus.textContent='';
+    map._cmBaseStatus.hidden=true;
+  }
   const layer=L.tileLayer(candidate.url,{
     maxNativeZoom:candidate.maxNativeZoom,maxZoom:20,
-    attribution:candidate.attribution,opacity:1,
+    attribution:watchDarkTiles && index===0
+      ? candidate.attribution+' &copy; <a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a>'
+      : candidate.attribution,
+    opacity:1,
     className:'dc25-base-layer dc25-filter-'+candidate.filter,
     crossOrigin:'anonymous',updateWhenIdle:true,keepBuffer:2
   });
@@ -10898,6 +10949,7 @@ function applyBaseTile(map){
     if(baseLayers[id]!==layer)return;
     map._infraTileErrors++;
     mapInfraRecord(map,candidate.provider,'fail');
+    if(watchDarkTiles)return;
     if(map._infraTileErrors>=3){
       if(index+1<candidates.length){
         map._dc26ProviderIndex=index+1;
@@ -10912,6 +10964,7 @@ function applyBaseTile(map){
       }
     }
   });
+  if(watchDarkTiles)cmWatchDarkBaseTiles(map,layer,id,candidates,index);
   layer.addTo(map);
   layer.bringToBack();
   dc25EnsureStyleControl(map);
