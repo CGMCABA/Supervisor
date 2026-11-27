@@ -339,6 +339,82 @@ html, body {
 .analysis-subview.active { display:flex; }
 #view-resumen { flex-direction:column; }
 #view-esquema { flex-direction:column; }
+#view-congestion-medida { flex-direction:column; min-height:0; }
+#view-congestion-medida .analysis-view-head { flex:none; padding:7px 12px; gap:10px; }
+#view-congestion-medida .analysis-view-title { font-size:1.1rem; }
+#view-congestion-medida .analysis-view-body { display:flex; flex-direction:column; min-height:0; gap:7px; padding:8px 12px; overflow:auto; }
+#view-congestion-medida .cm-controls { display:flex; flex-wrap:wrap; align-items:end; gap:8px; }
+#view-congestion-medida .cm-controls label { display:grid; gap:2px; min-width:0; color:var(--text2); font-size:.78rem; }
+#view-congestion-medida .cm-controls select { min-height:34px; max-width:100%; padding:3px 7px; background:var(--bg3); color:var(--text); border:1px solid var(--border2); border-radius:5px; font:inherit; }
+#view-congestion-medida .cm-controls > button { min-height:34px; }
+#view-congestion-medida .cm-timebar { flex:1 1 250px; min-width:0; max-width:520px; padding:0 8px; }
+#view-congestion-medida .cm-time-caption { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+#cm-time-label { color:var(--gold); font-weight:700; font-variant-numeric:tabular-nums; }
+#view-congestion-medida .cm-slider { position:relative; margin:0 16px; border-radius:5px; touch-action:none; cursor:pointer; }
+#view-congestion-medida .cm-slider.is-dragging { --cm-time-duration:0ms; }
+#view-congestion-medida .cm-slider.is-snapping { --cm-time-duration:180ms; }
+#view-congestion-medida .cm-slider:focus-within { outline:2px solid var(--gold); outline-offset:2px; }
+#cm-time { position:relative; display:block; width:100%; height:24px; margin:0; appearance:none; -webkit-appearance:none; opacity:0; pointer-events:none; }
+#cm-time::-webkit-slider-thumb { appearance:none; -webkit-appearance:none; width:18px; height:18px; }
+#cm-time::-moz-range-thumb { width:18px; height:18px; border:0; }
+#view-congestion-medida .cm-track { position:absolute; inset-inline:9px; top:50%; height:4px; transform:translateY(-50%); border-radius:6px; background:var(--border2); pointer-events:none; }
+#view-congestion-medida .cm-progress,
+#view-congestion-medida .cm-thumb-motion { position:absolute; inset:0; transition:transform var(--cm-time-duration,500ms) ease-in-out; }
+#view-congestion-medida .cm-progress { border-radius:inherit; background:var(--gold); transform-origin:left; transform:scaleX(calc(var(--cm-step,0) / 3)); }
+#view-congestion-medida .cm-thumb-motion { transform:translateX(calc(var(--cm-step,0) * 100% / 3)); }
+#view-congestion-medida .cm-thumb { position:absolute; top:50%; left:0; width:15px; height:15px; border:2px solid var(--bg3); border-radius:50%; background:var(--gold); box-shadow:0 0 0 1px var(--gold-border); transform:translate(-50%,-50%); }
+#view-congestion-medida .cm-hour-steps { position:relative; height:24px; margin-inline:25px; }
+#view-congestion-medida .cm-hour-steps button { position:absolute; left:0; transform:translateX(-50%); background:transparent; border:1px solid transparent; border-radius:5px; color:var(--text2); font:inherit; font-size:.76rem; padding:2px 4px; cursor:pointer; transition:color 160ms, background-color 160ms; }
+#view-congestion-medida .cm-hour-steps button:nth-child(2) { left:33.3333%; }
+#view-congestion-medida .cm-hour-steps button:nth-child(3) { left:66.6667%; }
+#view-congestion-medida .cm-hour-steps button:nth-child(4) { left:100%; }
+#view-congestion-medida .cm-hour-steps button[aria-pressed="true"] { color:var(--gold); border-color:var(--gold-border); background:var(--gold-a); font-weight:700; }
+#view-congestion-medida .cm-status { margin:0; color:var(--text2); font-size:.78rem; }
+#view-congestion-medida .cm-status:empty { display:none; }
+#view-congestion-medida .cm-status[data-error] { color:var(--red); }
+#view-congestion-medida .cm-info { display:flex; flex-wrap:wrap; column-gap:12px; row-gap:2px; }
+#view-congestion-medida .cm-counts { margin:0; color:var(--text); font-size:.85rem; }
+#view-congestion-medida .cm-warnings { flex:none; height:1.45em; line-height:1.45; color:var(--gold); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#view-congestion-medida .cm-warnings:empty { display:block; }
+#view-congestion-medida .cm-layout { display:grid; flex:1 0 320px; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) auto; gap:6px; min-height:0; }
+#view-congestion-medida .cm-map-wrap { display:grid; grid-template-rows:minmax(0,1fr) auto; min-height:0; min-width:0; }
+#cm-map { width:100%; height:100%; min-height:0; border:1px solid var(--border2); border-radius:7px; background:#101010; }
+#view-congestion-medida .cm-road { transition:opacity 360ms ease-in-out; }
+#view-congestion-medida .cm-road-hidden { opacity:0; pointer-events:none; }
+#view-congestion-medida .cm-diagnostics { padding:5px 8px; border:1px solid var(--border); border-radius:7px; background:var(--bg3); color:var(--text); font-size:.8rem; }
+#view-congestion-medida .cm-diagnostics summary { cursor:pointer; font-weight:600; }
+#view-congestion-medida .cm-results { display:flex; flex-wrap:wrap; align-items:start; gap:5px; max-height:90px; overflow:auto; margin-top:5px; }
+#view-congestion-medida .cm-results button { text-align:left; white-space:normal; padding:5px 7px; }
+#view-congestion-medida .cm-review { padding:3px 7px; overflow-wrap:anywhere; }
+#view-congestion-medida .cm-card { position:absolute; z-index:850; width:min(254px,calc(100% - 64px)); max-height:calc(100% - 76px); overflow:auto; overscroll-behavior:contain; padding:9px 10px; border:1px solid #59606a; border-top:2px solid #59606a; border-radius:8px; background:#191b20; color:#f4f4f5; box-shadow:0 5px 18px #0008; font:13px/1.36 var(--sans); opacity:0; translate:0 4px; visibility:hidden; pointer-events:none; transition:opacity 150ms,translate 150ms,visibility 0s 150ms; }
+#view-congestion-medida .cm-card.is-visible { opacity:1; translate:0 0; visibility:visible; pointer-events:auto; transition-delay:0s; }
+#view-congestion-medida .cm-card header { display:flex; align-items:start; gap:6px; justify-content:space-between; }
+#view-congestion-medida .cm-card h3 { margin:0; font-size:.98rem; line-height:1.2; }
+#view-congestion-medida .cm-card p { margin:4px 0 0; white-space:pre-line; overflow-wrap:anywhere; }
+#view-congestion-medida .cm-card p:empty { display:none; }
+#view-congestion-medida .cm-card-meta { color:#c3c8d2; font-size:.77rem; }
+#view-congestion-medida .cm-card-status { font-weight:650; }
+#view-congestion-medida .cm-card-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(85px,1fr)); gap:5px; margin:7px 0 0; }
+#view-congestion-medida .cm-card-metrics > div { border:1px solid #414750; border-radius:5px; padding:4px 5px; background:#22252c; }
+#view-congestion-medida .cm-card-metrics dt { color:#c3c8d2; font-size:.72rem; }
+#view-congestion-medida .cm-card-metrics dd { margin:1px 0 0; font-weight:650; font-variant-numeric:tabular-nums; }
+#view-congestion-medida .cm-card-notes { margin-top:5px; }
+#cm-card-close { flex:none; min-width:28px; min-height:28px; margin:-4px -4px 0 0; border:1px solid #59606a; border-radius:5px; background:transparent; color:inherit; cursor:pointer; font-size:1rem; }
+#view-congestion-medida .cm-card [hidden] { display:none; }
+#view-congestion-medida button:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+#view-congestion-medida .cm-attribution { margin:3px 0 0; font-size:.74rem; color:var(--text2); }
+#view-congestion-medida .cm-attribution a { color:inherit; text-decoration:underline; }
+@media(max-width:800px) {
+  #view-congestion-medida .analysis-view-body { padding:7px; }
+  #view-congestion-medida .cm-controls > label { flex:1 1 92px; }
+  #view-congestion-medida .cm-timebar { order:1; flex-basis:100%; max-width:none; }
+  #view-congestion-medida .cm-hour-steps button { min-height:28px; }
+  #view-congestion-medida .cm-hour-steps { height:30px; }
+  #view-congestion-medida .cm-layout { grid-template-rows:minmax(295px,1fr) auto; flex-basis:auto; }
+}
+@media(prefers-reduced-motion:reduce) {
+  #view-congestion-medida :is(.cm-progress,.cm-thumb-motion,.cm-road,.cm-card,.cm-hour-steps button) { transition:none; }
+}
 
 /* ════════════════════════════════════════════
    VIEWS
@@ -5622,6 +5698,7 @@ body.theme-light #view-radar #sup287-focus-results button b{color:#95600f}
         <button class="analysis-menu-item active" data-analysis-view="dashboard" onclick="switchAnalysisView('dashboard')">📈 Dashboard Analítico</button>
         <button class="analysis-menu-item" data-analysis-view="resumen" onclick="switchAnalysisView('resumen')">📋 Resumen Operativo</button>
         <button class="analysis-menu-item" data-analysis-view="esquema" onclick="switchAnalysisView('esquema')">🚩 Esquema Operativo</button>
+        <button class="analysis-menu-item" data-analysis-view="congestion-medida" onclick="switchAnalysisView('congestion-medida')">🚗 Congestión medida</button>
       </div>
     </div>
   </div>
@@ -6105,6 +6182,79 @@ body.theme-light #view-radar .sup285-zone-summary{background:rgba(62,101,134,.07
   </div><!-- /an-map-side -->
 
 </div><!-- /view-analisis -->
+
+<div id="view-congestion-medida" class="view analysis-subview">
+  <div class="analysis-view-head">
+    <div>
+      <div class="analysis-view-title">Congestión medida</div>
+      <div class="analysis-view-sub">Caballito · Relevamiento histórico de Waze Traffic View</div>
+    </div>
+    <button type="button" class="analysis-back-btn" onclick="switchAnalysisView('dashboard')">← Dashboard</button>
+  </div>
+  <div class="analysis-view-body">
+    <div class="cm-controls">
+      <label>Fecha <select id="cm-date" disabled></select></label>
+      <label>Traza <select id="cm-trace" disabled></select></label>
+      <label>Estado <select id="cm-state" disabled>
+        <option value="">Todos</option>
+        <option value="measured">Con congestión</option>
+        <option value="clear">Sin congestión registrada</option>
+      </select></label>
+      <div class="cm-timebar">
+        <div class="cm-time-caption">
+          <label for="cm-time">Horario · Buenos Aires</label>
+          <span id="cm-time-label" aria-hidden="true">08:00</span>
+        </div>
+        <div class="cm-slider" id="cm-slider">
+          <div class="cm-track" id="cm-track" aria-hidden="true"><span class="cm-progress"></span><span class="cm-thumb-motion" id="cm-thumb-motion"><span class="cm-thumb"></span></span></div>
+          <input type="range" id="cm-time" min="0" max="3" step="1" value="0" aria-valuetext="08:00">
+        </div>
+        <div class="cm-hour-steps" id="cm-hours" aria-label="Horarios oficiales">
+          <button type="button" data-step="0" aria-pressed="true">08:00</button>
+          <button type="button" data-step="1" aria-pressed="false">12:30</button>
+          <button type="button" data-step="2" aria-pressed="false">17:00</button>
+          <button type="button" data-step="3" aria-pressed="false">20:00</button>
+        </div>
+      </div>
+      <button type="button" class="analysis-back-btn" id="cm-refresh">Actualizar ahora</button>
+    </div>
+    <div class="cm-info">
+      <p class="cm-status" id="cm-last-updated" title="Hora de consulta del CSV público">Última actualización exitosa · Sin carga exitosa</p>
+      <p class="cm-status" id="cm-load-status" role="status"></p>
+      <p class="cm-status" id="cm-map-status" role="status" hidden></p>
+    </div>
+    <p class="cm-counts" id="cm-counts" aria-live="polite"></p>
+    <p class="cm-status cm-warnings" id="cm-warnings" role="status"></p>
+    <div class="cm-layout">
+      <div class="cm-map-wrap">
+        <div id="cm-map" aria-label="Mapa histórico de congestión en Caballito">
+          <aside class="cm-card" id="cm-card" aria-labelledby="cm-card-title" aria-hidden="true" inert>
+            <header><h3 id="cm-card-title"></h3><button type="button" id="cm-card-close" aria-label="Cerrar detalle del tramo" hidden>×</button></header>
+            <p class="cm-card-meta" id="cm-card-date"></p>
+            <p class="cm-card-status" id="cm-card-status"></p>
+            <p id="cm-card-route"></p>
+            <p class="cm-card-meta" id="cm-card-direction"></p>
+            <dl class="cm-card-metrics" id="cm-card-metrics" hidden>
+              <div id="cm-card-speed-metric"><dt>Velocidad media</dt><dd id="cm-card-speed"></dd></div>
+              <div id="cm-card-time-metric"><dt>Tiempo de recorrido</dt><dd id="cm-card-travel-time"></dd></div>
+            </dl>
+            <div class="cm-card-notes" id="cm-card-observations" hidden>
+              <span class="cm-card-meta">Observaciones</span>
+              <p id="cm-card-notes"></p>
+            </div>
+            <p class="cm-card-meta" id="cm-card-source"></p>
+          </aside>
+        </div>
+        <p class="cm-attribution">Ejes viales recortados del <a href="https://data.buenosaires.gob.ar/dataset/calles/resource/2941f731-0a2e-4391-b8c9-a2912a80c081" target="_blank" rel="noopener noreferrer">Callejero de Buenos Aires Data (GCBA)</a>.</p>
+      </div>
+      <details class="cm-diagnostics">
+        <summary>Tramos y diagnóstico</summary>
+        <div class="cm-results" id="cm-results" aria-label="Registros del horario seleccionado"></div>
+        <p class="cm-status" id="cm-audit"></p>
+      </details>
+    </div>
+  </div>
+</div>
 
 <!-- ════ VISTA RESUMEN OPERATIVO ════ -->
 <div id="view-resumen" class="view analysis-subview">
@@ -7005,7 +7155,7 @@ function updateBreadcrumb(tab, ctx1, ctx2) {
   const bcCtx1 = document.getElementById('bc-ctx1');
   const bcSep2 = document.getElementById('bc-sep2');
   const bcCtx2 = document.getElementById('bc-ctx2');
-  if (bcTab)  bcTab.textContent  = labels[tab] || tab;
+  if (bcTab)  bcTab.textContent  = tab === 'congestion-medida' ? '📊 Análisis · Congestión medida' : labels[tab] || tab;
   if (bcSep1) bcSep1.style.display = ctx1 ? '' : 'none';
   if (bcCtx1) { bcCtx1.textContent = ctx1 || ''; bcCtx1.style.display = ctx1 ? '' : 'none'; }
   if (bcSep2) bcSep2.style.display = ctx2 ? '' : 'none';
@@ -7061,9 +7211,7 @@ function closeAnalysisMenu() {
 function switchAnalysisView(view) {
   closeAnalysisMenu();
 
-  // Las tres herramientas de Análisis son vistas exclusivas.
-  // Nunca deben coexistir en el DOM visible: Dashboard, Resumen y Esquema
-  // ocupan exactamente la misma zona central de trabajo.
+  // Las herramientas de Análisis comparten la misma zona de trabajo.
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
 
   const target = document.getElementById(view === 'dashboard' ? 'view-analisis' : 'view-'+view);
@@ -7077,11 +7225,7 @@ function switchAnalysisView(view) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (analysisBtn) analysisBtn.classList.add('active');
 
-  updateBreadcrumb(
-    view === 'dashboard' ? 'analisis' :
-    view === 'resumen' ? 'resumen' :
-    'esquema'
-  );
+  updateBreadcrumb(view === 'dashboard' ? 'analisis' : view);
 
   if (view === 'dashboard') {
     if (!allSucesos.length && !allSemaforos.length) cargarDatos();
@@ -7099,6 +7243,8 @@ function switchAnalysisView(view) {
       if (input) input.focus();
     }, 100);
 
+  } else if (view === 'congestion-medida') {
+    congestionMedida.open();
   }
   supApplyMobileLayout(view === 'dashboard' ? 'analisis' : view);
 }
@@ -7146,6 +7292,1020 @@ document.addEventListener('click', e => {
   const nav = document.querySelector('.analysis-nav');
   if (nav && !nav.contains(e.target)) closeAnalysisMenu();
 });
+
+// ════════════════════════════════════════════
+//  CONGESTIÓN MEDIDA
+// ════════════════════════════════════════════
+const congestionMedida = (() => {
+  const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSgHjyL7Wbg70k9Glpba9-XJO1XlrbOX0moiRK9qKmg6OB0WFAjupfHZvBTZhT9FJAnQy2yg2e_W7sR/pub?gid=1483366847&single=true&output=csv';
+  const fields = {
+    date:'Fecha', trace:'Traza', time:'Horario', direction:'Sentido (opcional)', from:'Desde calle',
+    to:'Hasta calle', speed:'Velocidad (km/h)', duration:'Duración (min)', notes:'Observaciones',
+    clear:'Sin datos (si aplica)', control:'Control automático', auxiliaryDate:'Fecha auxiliar',
+    auxiliaryTrace:'Traza auxiliar', color:'Color representativo'
+  };
+  const states = {
+    measured:'Con congestión', clear:'Sin congestión registrada', incomplete:'Incompleto',
+    invalid:'Inválido', conflict:'Conflicto de registros'
+  };
+  const colors = new Map([['verde','#22c55e'],['amarillo','#facc15'],['rojo','#ef4444']]);
+  const timeZone = 'America/Argentina/Buenos_Aires';
+  const officialHours = ['08:00','12:30','17:00','20:00'];
+  const refreshPeriod = 5 * 60 * 1000;
+  const aliases = new Map([
+    ['JUAN B AMBROSETTI','AMBROSETTI JUAN B'],
+    ['PUEYRREDON HONORIO DR','HONORIO PUEYRREDON'],
+    ['ARTURO JAURETCHE','JAURETCHE ARTURO'],
+    ['FELIPE VALLESE','VALLESE FELIPE']
+  ]);
+
+  function streetKey(value) {
+    const key = normH(value).replace(/[^A-Z0-9]+/g,' ').replace(/\b(?:AVENIDA|AV)\b/g,'').replace(/\s+/g,' ').trim();
+    return aliases.get(key) || key;
+  }
+
+  function dateKey(value) {
+    const parts = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value);
+    if (!parts) return '';
+    const [, day, month, year] = parts;
+    const key = [year,month.padStart(2,'0'),day.padStart(2,'0')].join('-');
+    const parsed = new Date(key + 'T00:00:00Z');
+    return Number.isFinite(+parsed) && parsed.toISOString().slice(0,10) === key ? key : '';
+  }
+
+  function timeKey(value) {
+    const parts = /^(\d{1,2}):([0-5]\d)(?::00)?$/.exec(value);
+    const key = parts ? parts[1].padStart(2,'0') + ':' + parts[2] : '';
+    return officialHours.includes(key) ? key : '';
+  }
+
+  function numberValue(value, allowZero) {
+    const number = /^\d+(?:[,.]\d+)?$/.test(value) ? Number(value.replace(',','.')) : NaN;
+    return Number.isFinite(number) && (allowZero ? number >= 0 : number > 0) ? number : NaN;
+  }
+
+  function classify(record) {
+    const {from, to, speed, duration, control, color} = record;
+    if (record.contextError) return ['invalid', record.contextError];
+    if (control === 'PENDIENTE') return ['pending',''];
+    if (control === 'SIN DATOS') return ['clear',''];
+    if (!control) return ['incomplete','Falta el estado de Control automático.'];
+    if (control !== 'COMPLETO') return ['invalid','El control automático tiene un valor desconocido.'];
+    if (!from || !to) return ['incomplete','Faltan los cruces del tramo congestionado.'];
+    if (streetKey(from) === streetKey(to)) return ['invalid','Los dos cruces son iguales.'];
+    if (!colors.has(color)) return ['incomplete','Falta un color representativo válido.'];
+    if ((speed && !Number.isFinite(numberValue(speed,true))) ||
+        (duration && !Number.isFinite(numberValue(duration,false)))) {
+      return ['invalid','La velocidad o la duración tiene un formato o valor inválido.'];
+    }
+    return ['measured',''];
+  }
+
+  function validateCsvSyntax(text) {
+    const token = /(?:"(?:[^"]|"")*"|[^",\r\n]*)(?:,|\r\n|\n|$)/y;
+    let offset = 0;
+    while (offset < text.length) {
+      token.lastIndex = offset;
+      if (!token.exec(text) || token.lastIndex === offset) throw new Error('El archivo tiene un formato CSV inválido.');
+      offset = token.lastIndex;
+    }
+  }
+
+  function parseCsv(text, reportReceived = () => {}) {
+    text = text.replace(/^\uFEFF/,'');
+    validateCsvSyntax(text);
+    const rows = parseCSVRaw(text);
+    const expected = Object.values(fields).map(normH);
+    const headerIndex = rows.findIndex(row => row.some(value => normH(value) === 'FECHA') &&
+      row.some(value => normH(value) === 'TRAZA') && row.some(value => normH(value) === 'HORARIO'));
+    const headers = rows[headerIndex]?.map(normH);
+    if (headers?.length !== expected.length || !expected.every(name => headers.includes(name))) {
+      throw new Error('El CSV no contiene las columnas esperadas de Registro Waze.');
+    }
+    const observations = rows.slice(headerIndex+1);
+    reportReceived(observations.length);
+    if (!observations.length) throw new Error('El CSV no contiene registros.');
+    if (observations.some(row => row.length !== headers.length)) throw new Error('El CSV contiene filas con un ancho inesperado.');
+
+    const columns = Object.entries(fields).map(([field, label]) => [field,headers.indexOf(normH(label))]);
+    const bySurvey = new Map();
+    const records = observations.map((row, index) => {
+      const record = Object.fromEntries(columns.map(([field, column]) => [field,row[column]]));
+      record.id = index;
+      const primaryDate = dateKey(record.date);
+      const auxiliaryDate = dateKey(record.auxiliaryDate);
+      const trace = streetKey(record.trace);
+      const auxiliaryTrace = streetKey(record.auxiliaryTrace);
+      const dateConflict = Boolean(primaryDate && auxiliaryDate && primaryDate !== auxiliaryDate);
+      const traceConflict = Boolean(trace && auxiliaryTrace && trace !== auxiliaryTrace);
+      if (dateConflict || traceConflict || (record.date && !primaryDate) || (record.auxiliaryDate && !auxiliaryDate)) {
+        record.contextError = 'La fecha o la traza no coincide con su campo auxiliar o tiene un valor inválido.';
+      }
+      record.date = dateConflict ? '' : primaryDate || auxiliaryDate;
+      record.trace = traceConflict ? '' : record.trace || record.auxiliaryTrace;
+      record.traceKey = streetKey(record.trace);
+      record.time = timeKey(record.time);
+      record.color = record.color.toLowerCase();
+      record.control = normH(record.control);
+      if ((!record.date || !record.traceKey || !record.time) && !record.contextError) {
+        record.contextError = 'Falta una fecha, un horario o una traza válidos.';
+      }
+      [record.state, record.reason] = classify(record);
+
+      if (record.date && record.time && record.traceKey && record.state !== 'pending') {
+        const key = JSON.stringify([record.date,record.time,record.traceKey]);
+        if (!bySurvey.has(key)) bySurvey.set(key,[]);
+        bySurvey.get(key).push(record);
+      }
+      return record;
+    });
+
+    for (const survey of bySurvey.values()) reviewSurvey(survey);
+    return records.filter(record => !record.duplicate);
+  }
+
+  function reviewSurvey(survey) {
+    const clear = survey.filter(record => record.state === 'clear');
+    const measured = survey.filter(record => record.state === 'measured');
+    if (clear.length && measured.length) {
+      for (const record of [...clear,...measured]) {
+        record.state = 'conflict';
+        record.reason = 'La misma traza y horario tienen un relevamiento sin congestión y otro con congestión.';
+      }
+      return;
+    }
+    const groups = new Map();
+    for (const record of survey) {
+      const key = record.state === 'clear' ? 'corredor' : JSON.stringify([streetKey(record.from),streetKey(record.to)].sort());
+      if (!groups.has(key)) groups.set(key,[]);
+      groups.get(key).push(record);
+    }
+    for (const group of groups.values()) {
+      if (group.length < 2) continue;
+      const signatures = new Set(group.map(record => record.state === 'clear' ? 'clear' : JSON.stringify([
+        record.state, Number.isNaN(numberValue(record.speed,true)) ? record.speed : numberValue(record.speed,true),
+        Number.isNaN(numberValue(record.duration,false)) ? record.duration : numberValue(record.duration,false),
+        record.color, normH(record.direction), record.reason
+      ])));
+      if (signatures.size > 1) {
+        for (const record of group) {
+          record.state = 'conflict';
+          record.reason = 'Hay datos incompatibles para la misma fecha, horario y tramo.';
+        }
+      } else {
+        group[0].notes = [...new Set(group.map(record => record.notes).filter(Boolean))].join('\n');
+        for (const record of group.slice(1)) record.duplicate = true;
+      }
+    }
+  }
+
+  // Ejes oficiales de Caballito seleccionados por código de calle y barrio.
+  // Cruces por vértice compartido del Callejero GCBA (edición 13/11/2026), a 7 decimales.
+  const axes = {
+    "ACOYTE": {
+      edges: [
+        [[-34.6064938,-58.4401334],[-34.60584,-58.4401429]],
+        [[-34.6070841,-58.4401248],[-34.6064938,-58.4401334]],
+        [[-34.6077412,-58.4401158],[-34.6076565,-58.4401166],[-34.6070841,-58.4401248]],
+        [[-34.6087973,-58.4401209],[-34.6077412,-58.4401158]],
+        [[-34.6107987,-58.439302],[-34.6087973,-58.4401209]],
+        [[-34.612793,-58.4384023],[-34.6126268,-58.4384786],[-34.6109566,-58.4392374],[-34.6107987,-58.439302]],
+        [[-34.6140751,-58.4378135],[-34.612793,-58.4384023]],
+        [[-34.6146226,-58.4377445],[-34.6140751,-58.4378135]],
+        [[-34.6158855,-58.4375855],[-34.6146226,-58.4377445]],
+        [[-34.6158855,-58.4375855],[-34.6159428,-58.4375783]],
+        [[-34.6164434,-58.4373725],[-34.6160492,-58.4375649],[-34.6159428,-58.4375783]],
+        [[-34.6167061,-58.4372822],[-34.6164434,-58.4373725]],
+        [[-34.6170786,-58.4370896],[-34.6167061,-58.4372822]],
+        [[-34.6182998,-58.4364582],[-34.6170786,-58.4370896]]
+      ],
+      crossings: {
+        "ARANGUREN JUAN F DR":[[-34.612793,-58.4384023]],
+        "ARAOZ ALFARO GREGORIO DR":[[-34.6158855,-58.4375855]],
+        "AVELLANEDA":[[-34.6140751,-58.4378135]],
+        "BOGOTA":[[-34.6146226,-58.4377445]],
+        "DAVEL DESIDERIO FERNANDO DR":[[-34.6070841,-58.4401248]],
+        "DIAZ VELEZ":[[-34.6087973,-58.4401209]],
+        "FLORES VENANCIO GRAL":[[-34.6164434,-58.4373725]],
+        "FRANKLIN":[[-34.6077412,-58.4401158]],
+        "GALLARDO ANGEL":[[-34.60584,-58.4401429]],
+        "MACHADO ANTONIO":[[-34.6064938,-58.4401334]],
+        "MORENO JOSE MARIA":[[-34.6182998,-58.4364582]],
+        "NEUQUEN":[[-34.6159428,-58.4375783]],
+        "RIVADAVIA":[[-34.6182998,-58.4364582]],
+        "VALLESE FELIPE":[[-34.6107987,-58.439302]],
+        "VILA NICOLAS":[[-34.6167061,-58.4372822]],
+        "YERBAL":[[-34.6170786,-58.4370896]]
+      }
+    },
+    "AMBROSETTI JUAN B": {
+      edges: [
+        [[-34.6064869,-58.43873],[-34.6063544,-58.4387318]],
+        [[-34.6070747,-58.4387221],[-34.6064869,-58.43873]],
+        [[-34.6077403,-58.4387141],[-34.607606,-58.438715],[-34.6070747,-58.4387221]],
+        [[-34.6087973,-58.4387065],[-34.6077403,-58.4387141]],
+        [[-34.6104366,-58.4383567],[-34.6087978,-58.4388602]],
+        [[-34.611292,-58.4380939],[-34.6104366,-58.4383567]],
+        [[-34.6124725,-58.4377312],[-34.611292,-58.4380939]],
+        [[-34.6138554,-58.4372923],[-34.612664,-58.4376724],[-34.6124725,-58.4377312]],
+        [[-34.614327,-58.436955],[-34.6142051,-58.4370139],[-34.6138554,-58.4372923]],
+        [[-34.6155409,-58.4363681],[-34.614327,-58.436955]],
+        [[-34.6165904,-58.4358597],[-34.6155409,-58.4363681]],
+        [[-34.617779,-58.435285],[-34.6165904,-58.4358597]]
+      ],
+      crossings: {
+        "ARANGUREN JUAN F DR":[[-34.6124725,-58.4377312]],
+        "ARAOZ ALFARO GREGORIO DR":[[-34.6155409,-58.4363681]],
+        "AVELLANEDA":[[-34.6138554,-58.4372923]],
+        "BOGOTA":[[-34.614327,-58.436955]],
+        "DAVEL DESIDERIO FERNANDO DR":[[-34.6070747,-58.4387221]],
+        "DIAZ VELEZ":[[-34.6087973,-58.4387065],[-34.6087978,-58.4388602]],
+        "FRANKLIN":[[-34.6077403,-58.4387141]],
+        "JAURETCHE ARTURO":[[-34.611292,-58.4380939]],
+        "MACHADO ANTONIO":[[-34.6064869,-58.43873]],
+        "MARECHAL LEOPOLDO":[[-34.6063544,-58.4387318]],
+        "RIVADAVIA":[[-34.617779,-58.435285]],
+        "VALLESE FELIPE":[[-34.6104366,-58.4383567]],
+        "YERBAL":[[-34.6165904,-58.4358597]]
+      }
+    },
+    "HONORIO PUEYRREDON": {
+      edges: [
+        [[-34.6077894,-58.4454108],[-34.6073866,-58.4457381]],
+        [[-34.608393,-58.4449581],[-34.6080965,-58.4451729],[-34.6077894,-58.4454108]],
+        [[-34.6090111,-58.4444925],[-34.608393,-58.4449581]],
+        [[-34.6099826,-58.443737],[-34.6090111,-58.4444925]],
+        [[-34.6109331,-58.4430195],[-34.6099826,-58.443737]],
+        [[-34.6119132,-58.4422731],[-34.6113466,-58.4426977],[-34.6109331,-58.4430195]],
+        [[-34.61299,-58.4415131],[-34.6119132,-58.4422731]],
+        [[-34.6139683,-58.4410422],[-34.6133457,-58.4413162],[-34.61299,-58.4415131]],
+        [[-34.6148531,-58.4407239],[-34.6145596,-58.4407888],[-34.6139683,-58.4410422]],
+        [[-34.6159372,-58.4405655],[-34.6157992,-58.4406307],[-34.6150046,-58.4406929],[-34.6148531,-58.4407239]],
+        [[-34.6171467,-58.439914],[-34.6159328,-58.4404263]],
+        [[-34.6181863,-58.4395173],[-34.6176873,-58.4397136]],
+        [[-34.6194349,-58.4390151],[-34.6193249,-58.4390654],[-34.6181863,-58.4395173]],
+        [[-34.6176873,-58.4397136],[-34.617625,-58.4397322],[-34.6172318,-58.4399713],[-34.6171467,-58.439914]],
+        [[-34.6078236,-58.4452106],[-34.6077217,-58.4451363],[-34.6076465,-58.4451508],[-34.6073496,-58.4452431],[-34.6072246,-58.4452828]],
+        [[-34.6159372,-58.4405655],[-34.6157968,-58.440525],[-34.614785,-58.4405887]],
+        [[-34.614785,-58.4405887],[-34.6145875,-58.4406352],[-34.6139178,-58.4409133]],
+        [[-34.6139178,-58.4409133],[-34.6131983,-58.4412423],[-34.6129382,-58.4413812]],
+        [[-34.6129382,-58.4413812],[-34.6122215,-58.4418766],[-34.6118624,-58.4421405]],
+        [[-34.6118624,-58.4421405],[-34.6108795,-58.4428779]],
+        [[-34.6108795,-58.4428779],[-34.6099319,-58.4436017]],
+        [[-34.6099319,-58.4436017],[-34.6089612,-58.4443583]],
+        [[-34.6089612,-58.4443583],[-34.6078236,-58.4452106]],
+        [[-34.6078236,-58.4452106],[-34.6073307,-58.4456007]]
+      ],
+      crossings: {
+        "AMPERE":[[-34.608393,-58.4449581]],
+        "ARANGUREN JUAN F DR":[[-34.6139178,-58.4409133],[-34.6139683,-58.4410422]],
+        "ARENGREEN":[[-34.6108795,-58.4428779],[-34.6109331,-58.4430195]],
+        "AVELLANEDA":[[-34.614785,-58.4405887],[-34.6148531,-58.4407239]],
+        "BACACAY":[[-34.6171467,-58.439914]],
+        "BEADE":[[-34.6176873,-58.4397136]],
+        "DIAZ VELEZ":[[-34.6078236,-58.4452106],[-34.6077894,-58.4454108]],
+        "FRANKLIN":[[-34.6089612,-58.4443583],[-34.6090111,-58.4444925]],
+        "GALLARDO ANGEL":[[-34.6072246,-58.4452828],[-34.6073307,-58.4456007],[-34.6073866,-58.4457381]],
+        "GAONA":[[-34.6073866,-58.4457381],[-34.6077894,-58.4454108]],
+        "MENDEZ DE ANDES":[[-34.6129382,-58.4413812],[-34.61299,-58.4415131]],
+        "NEUQUEN":[[-34.6159328,-58.4404263],[-34.6159372,-58.4405655]],
+        "PLANES":[[-34.6099319,-58.4436017],[-34.6099826,-58.443737]],
+        "RIVADAVIA":[[-34.6194349,-58.4390151]],
+        "SAN JOSE DE CALASANZ":[[-34.6194349,-58.4390151]],
+        "VALLESE FELIPE":[[-34.6118624,-58.4421405],[-34.6119132,-58.4422731]],
+        "YERBAL":[[-34.6181863,-58.4395173]]
+      }
+    },
+    "RIVADAVIA": {
+      edges: [
+        [[-34.6151048,-58.4292542],[-34.6154483,-58.4300302]],
+        [[-34.6155477,-58.4302546],[-34.6157796,-58.4307776]],
+        [[-34.6158207,-58.4308705],[-34.616038,-58.4313608]],
+        [[-34.616038,-58.4313608],[-34.61616,-58.4316361]],
+        [[-34.61616,-58.4316361],[-34.6164157,-58.4322128]],
+        [[-34.6164157,-58.4322128],[-34.6167036,-58.4328625]],
+        [[-34.6167036,-58.4328625],[-34.6168178,-58.4331202],[-34.6175362,-58.4347383]],
+        [[-34.6175362,-58.4347383],[-34.6177026,-58.4351129]],
+        [[-34.617779,-58.435285],[-34.6182998,-58.4364582]],
+        [[-34.6182998,-58.4364582],[-34.6188723,-58.4377479]],
+        [[-34.6188723,-58.4377479],[-34.6194349,-58.4390151]],
+        [[-34.6194349,-58.4390151],[-34.619984,-58.4402519]],
+        [[-34.619984,-58.4402519],[-34.6204093,-58.441211]],
+        [[-34.6204093,-58.441211],[-34.6205153,-58.4414638]],
+        [[-34.6205153,-58.4414638],[-34.621114,-58.4428901]],
+        [[-34.620824,-58.4411016],[-34.6210821,-58.4422052],[-34.6212904,-58.4428003]],
+        [[-34.621114,-58.4428901],[-34.621385,-58.443536]],
+        [[-34.621385,-58.443536],[-34.6217279,-58.4443532]],
+        [[-34.6212904,-58.4428003],[-34.6218147,-58.4441108],[-34.6218576,-58.4442377],[-34.6219149,-58.4443931]],
+        [[-34.6217279,-58.4443532],[-34.6220573,-58.4452145]],
+        [[-34.6220573,-58.4452145],[-34.6222799,-58.4456501],[-34.6224055,-58.4457884]],
+        [[-34.6224055,-58.4457884],[-34.6228864,-58.4470135]],
+        [[-34.6228864,-58.4470135],[-34.622985,-58.4472647]],
+        [[-34.622985,-58.4472647],[-34.6233219,-58.4481229]],
+        [[-34.6233219,-58.4481229],[-34.6235283,-58.4486486]],
+        [[-34.6235283,-58.4486486],[-34.6238265,-58.4494086]],
+        [[-34.6238265,-58.4494086],[-34.6240168,-58.4498933]],
+        [[-34.6240168,-58.4498933],[-34.6242297,-58.4504356],[-34.6243194,-58.4506654]],
+        [[-34.6243194,-58.4506654],[-34.6248356,-58.4519868]],
+        [[-34.6248356,-58.4519868],[-34.624912,-58.4521825],[-34.6252304,-58.4530029]],
+        [[-34.6252304,-58.4530029],[-34.62563,-58.4540318]],
+        [[-34.6154483,-58.4300302],[-34.6155477,-58.4302546]],
+        [[-34.6157796,-58.4307776],[-34.6158207,-58.4308705]],
+        [[-34.6219149,-58.4443931],[-34.6223579,-58.4455446],[-34.6224055,-58.4457884]],
+        [[-34.6177026,-58.4351129],[-34.617779,-58.435285]]
+      ],
+      crossings: {
+        "ACEVEDO EDUARDO":[[-34.6157796,-58.4307776]],
+        "ACOYTE":[[-34.6182998,-58.4364582]],
+        "ALVAREZ DONATO TTE GRAL":[[-34.62563,-58.4540318]],
+        "AMBROSETTI JUAN B":[[-34.617779,-58.435285]],
+        "BALCARCE FLORENCIO":[[-34.6175362,-58.4347383]],
+        "BARCO CENTENERA DEL":[[-34.6204093,-58.441211],[-34.620824,-58.4411016]],
+        "BEAUCHEF":[[-34.6177026,-58.4351129]],
+        "BIEDMA JOSE JUAN":[[-34.6243194,-58.4506654]],
+        "CACHIMAYO":[[-34.6212904,-58.4428003]],
+        "CAMPICHUELO":[[-34.6167036,-58.4328625]],
+        "CHIRIMAY":[[-34.6233219,-58.4481229]],
+        "COLPAYO":[[-34.619984,-58.4402519]],
+        "CURAPALIGUE":[[-34.62563,-58.4540318]],
+        "DOBLAS":[[-34.6164157,-58.4322128]],
+        "EL MAESTRO":[[-34.616038,-58.4313608]],
+        "ESPINOSA":[[-34.6224055,-58.4457884]],
+        "FRAGATA PRES SARMIENTO":[[-34.6233219,-58.4481229]],
+        "GAINZA MARTIN DE GRAL":[[-34.6220573,-58.4452145]],
+        "GARCIA LORCA FEDERICO":[[-34.6217279,-58.4443532]],
+        "GIMENEZ ANGEL M":[[-34.6188723,-58.4377479]],
+        "HIDALGO":[[-34.6188723,-58.4377479]],
+        "HORTIGUERA":[[-34.622985,-58.4472647]],
+        "LA PLATA":[[-34.6151048,-58.4292542]],
+        "LORA FELIX":[[-34.621385,-58.443536]],
+        "MALVINAS ARGENTINAS":[[-34.6248356,-58.4519868]],
+        "MARTINEZ VICTOR":[[-34.6224055,-58.4457884]],
+        "MIRO":[[-34.6240168,-58.4498933]],
+        "MITRE EMILIO":[[-34.6217279,-58.4443532],[-34.6219149,-58.4443931]],
+        "MORELOS":[[-34.6252304,-58.4530029]],
+        "MORENO JOSE MARIA":[[-34.6182998,-58.4364582]],
+        "ORONO NICASIO":[[-34.6238265,-58.4494086]],
+        "OTAMENDI":[[-34.61616,-58.4316361]],
+        "PARRAL":[[-34.6194349,-58.4390151]],
+        "PAYSANDU":[[-34.6228864,-58.4470135]],
+        "PUAN":[[-34.6235283,-58.4486486]],
+        "REPETTO NICOLAS DR":[[-34.621114,-58.4428901]],
+        "REPUBLICA DE INDONESIA":[[-34.6158207,-58.4308705]],
+        "RIO DE JANEIRO":[[-34.6154483,-58.4300302]],
+        "ROJAS":[[-34.6205153,-58.4414638]],
+        "ROSARIO":[[-34.620824,-58.4411016]],
+        "SAN JOSE DE CALASANZ":[[-34.6194349,-58.4390151]],
+        "SENILLOSA":[[-34.6155477,-58.4302546]]
+      }
+    }
+  };
+  const verifiedPaths = new Map();
+  const recordPaths = new WeakMap();
+  const references = {
+    'HONORIO PUEYRREDON': ['DIAZ VELEZ','NEUQUEN','Av. Díaz Vélez – Neuquén'],
+    ACOYTE: ['NEUQUEN','DIAZ VELEZ','Neuquén – Av. Díaz Vélez'],
+    'AMBROSETTI JUAN B': ['JAURETCHE ARTURO','RIVADAVIA','A. Jauretche – Av. Rivadavia'],
+    RIVADAVIA: ['LA PLATA','ACOYTE','Av. La Plata – Av. Acoyte']
+  };
+  const referencePaths = new Map();
+
+  function intersectedPath(axis, from, to) {
+    const starts = axis.crossings[from];
+    const ends = axis.crossings[to];
+    if (starts?.length !== 1 || ends?.length !== 1) return null;
+    const start = String(starts[0]);
+    const end = String(ends[0]);
+    if (start === end) return null;
+    const links = new Map();
+    for (const points of axis.edges) {
+      if (points.length < 2 || !points.every(([lat,lng]) =>
+        lat >= -34.64 && lat <= -34.59 && lng >= -58.47 && lng <= -58.42)) return null;
+      const a = String(points[0]);
+      const b = String(points.at(-1));
+      if (a === b) continue;
+      if (!links.has(a)) links.set(a,[]);
+      if (!links.has(b)) links.set(b,[]);
+      links.get(a).push({to:b,points,edge:points});
+      links.get(b).push({to:a,points:points.slice().reverse(),edge:points});
+    }
+    function findPath(excluded) {
+      const visited = new Map([[start,null]]);
+      const queue = [start];
+      for (const node of queue) {
+        if (node === end) {
+          const path = [];
+          for (let step = visited.get(end); step; step = visited.get(step.from)) path.push(step);
+          return path.reverse();
+        }
+        for (const link of links.get(node) || []) {
+          if (link.edge === excluded || visited.has(link.to)) continue;
+          visited.set(link.to,{from:node,...link});
+          queue.push(link.to);
+        }
+      }
+      return null;
+    }
+    const path = findPath();
+    if (!path || path.some(step => findPath(step.edge))) return null;
+    return path.flatMap(({points},index) => index ? points.slice(1) : points);
+  }
+
+  function geometry(record) {
+    if (!Object.hasOwn(axes,record.traceKey)) return null;
+    if (record.state === 'clear') {
+      const key = record.traceKey;
+      if (!referencePaths.has(key)) {
+        const axis = axes[key];
+        const [from,to] = references[key];
+        // Honorio Pueyrredón tiene dos calzadas verificadas que convergen en Neuquén.
+        const paths = axis.crossings[from].flatMap(start => axis.crossings[to].flatMap(end => {
+          const path = intersectedPath({edges:axis.edges,crossings:{[from]:[start],[to]:[end]}},from,to);
+          return path ? [path] : [];
+        }));
+        referencePaths.set(key,paths.length ? paths : null);
+      }
+      return referencePaths.get(key);
+    }
+    if (record.state !== 'measured') return null;
+    const from = streetKey(record.from);
+    const to = streetKey(record.to);
+    const key = JSON.stringify([record.traceKey,from,to]);
+    if (!verifiedPaths.has(key)) {
+      if (!recordPaths.has(record)) recordPaths.set(record,intersectedPath(axes[record.traceKey],from,to));
+      const path = recordPaths.get(record);
+      if (!path) return null;
+      verifiedPaths.set(key,path);
+    }
+    return verifiedPaths.get(key);
+  }
+
+  function filterRecords(records, {date,time,trace,state}) {
+    return records.filter(record => record.date === date && record.time === time &&
+      (!trace || record.traceKey === trace) && (!state || record.state === state));
+  }
+
+  const byId = id => document.getElementById('cm-'+id);
+  const view = () => document.getElementById('view-congestion-medida');
+  let records = [];
+  let lastSuccess = null;
+  let refreshTimer = null;
+  let request;
+  let map;
+  let lines;
+  let initialFramePending = true;
+  let renderedContext;
+  let lastCsv;
+  let parsedCount = 0;
+  let receivedCount = 0;
+  const drawn = new Map();
+  const retiring = new Map();
+  const reducedMotion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const hoverPointer = typeof matchMedia === 'function' ? matchMedia('(any-hover: hover)') : null;
+  let activeCard;
+  let hoverTimeout;
+  let selectedTimeStep = 0;
+  let timeDrag;
+
+  function formatDate(value) {
+    return value.split('-').reverse().join('/');
+  }
+
+  function localToday() {
+    const parts = new Intl.DateTimeFormat('en-CA',{timeZone,year:'numeric',month:'2-digit',day:'2-digit'})
+      .formatToParts(new Date());
+    return ['year','month','day'].map(type => parts.find(part => part.type === type).value).join('-');
+  }
+
+  function configureSelect(id, options, preferred, fallback) {
+    const select = byId(id);
+    select.replaceChildren(...options.map(([value, label]) => new Option(label,value)));
+    select.value = options.some(([value]) => value === preferred) ? preferred : fallback ?? options[0]?.[0] ?? '';
+    select.disabled = !options.length;
+  }
+
+  function setTimeStep(step) {
+    const slider = byId('time');
+    const label = byId('time-label');
+    const hour = officialHours[step];
+    selectedTimeStep = step;
+    slider.value = String(step);
+    slider.setAttribute('aria-valuetext',hour);
+    if (!timeDrag) byId('slider').style.setProperty('--cm-step',step);
+    if (label.textContent !== hour) {
+      label.textContent = hour;
+      label.getAnimations?.().forEach(animation => animation.cancel());
+      if (!reducedMotion?.matches) label.animate?.([{opacity:.5,transform:'translateY(2px)'},{opacity:1,transform:'translateY(0)'}],{duration:220});
+    }
+    for (const button of byId('hours').children) {
+      button.setAttribute('aria-pressed',String(Number(button.dataset.step) === step));
+    }
+  }
+
+  function moveTimeDrag(event) {
+    if (!timeDrag || event.pointerId !== timeDrag.pointerId) return;
+    const track = byId('track').getBoundingClientRect();
+    if (!track.width) return;
+    timeDrag.position = Math.min(1,Math.max(0,(event.clientX-track.left)/track.width))*(officialHours.length-1);
+    byId('slider').style.setProperty('--cm-step',timeDrag.position);
+  }
+
+  function startTimeDrag(event) {
+    if (timeDrag || !event.isPrimary || event.button !== 0) return;
+    event.preventDefault();
+    const slider = byId('slider');
+    const listeners = new AbortController();
+    byId('time').focus({preventScroll:true});
+    slider.setPointerCapture(event.pointerId);
+    timeDrag = {pointerId:event.pointerId,position:selectedTimeStep,listeners};
+    const options = {capture:true,signal:listeners.signal};
+    document.addEventListener('pointermove',moveTimeDrag,options);
+    document.addEventListener('pointerup',releaseTimeDrag,options);
+    document.addEventListener('pointercancel',cancelTimeDrag,options);
+    slider.classList.remove('is-snapping');
+    slider.classList.add('is-dragging');
+    moveTimeDrag(event);
+  }
+
+  function releaseTimeDrag(event) {
+    if (!timeDrag || event.pointerId !== timeDrag.pointerId) return;
+    moveTimeDrag(event);
+    finishTimeDrag(true);
+  }
+
+  function cancelTimeDrag(event) {
+    if (timeDrag && event.pointerId === timeDrag.pointerId) finishTimeDrag(false);
+  }
+
+  function finishTimeDrag(commit, settle = true) {
+    if (!timeDrag) return;
+    const slider = byId('slider');
+    const {pointerId,position,listeners} = timeDrag;
+    const step = commit ? Math.round(position) : selectedTimeStep;
+    const snapping = settle && !reducedMotion?.matches && Math.abs(step-position) > 0.001;
+    if (snapping) byId('thumb-motion').getBoundingClientRect();
+    timeDrag = null;
+    listeners.abort();
+    slider.classList.toggle('is-snapping',snapping);
+    slider.classList.remove('is-dragging');
+    if (slider.hasPointerCapture(pointerId)) slider.releasePointerCapture(pointerId);
+    setTimeStep(step);
+    if (commit) render({animate:true});
+  }
+
+  function updateFilters(firstLoad) {
+    const currentDate = byId('date').value;
+    const currentTrace = byId('trace');
+    const dates = [...new Set(records.map(record => record.date))].sort().reverse();
+    if (currentDate && !dates.includes(currentDate)) dates.push(currentDate);
+    let defaultDate;
+    if (firstLoad) {
+      const today = localToday();
+      const drawable = records.filter(record => record.date <= today && geometry(record));
+      defaultDate = drawable.map(record => record.date).sort().at(-1) || dates.find(date => date <= today) || dates.at(-1);
+      const hours = drawable.filter(record => record.date === defaultDate).map(record => record.time);
+      setTimeStep(Math.max(0,officialHours.indexOf(hours.sort().at(-1))));
+    }
+    configureSelect('date',dates.sort().reverse().map(date => [date,formatDate(date)]),currentDate,defaultDate);
+    const traces = new Map(records.map(record => [record.traceKey,record.trace]));
+    if (currentTrace.value && !traces.has(currentTrace.value)) {
+      traces.set(currentTrace.value,currentTrace.selectedOptions[0].textContent);
+    }
+    configureSelect('trace',[['','Todas'],...[...traces].sort((a,b) => a[1].localeCompare(b[1],'es-AR'))],currentTrace.value);
+    byId('state').disabled = !records.length;
+  }
+
+  function mapEnsure() {
+    if (map) return;
+    const status = byId('map-status');
+    status.hidden = typeof L !== 'undefined';
+    if (!status.hidden) {
+      status.textContent = 'Leaflet no está disponible. Podés consultar los registros en Tramos y diagnóstico.';
+      return;
+    }
+    map = L.map('cm-map',{maxZoom:20}).setView([-34.612,-58.438],14);
+    applyBaseTile(map);
+    lines = L.layerGroup().addTo(map);
+    map.on('movestart',() => { initialFramePending = false; });
+    map.on('click',() => closeCard());
+    map.on('move zoom',positionCard);
+    L.DomEvent.disableClickPropagation(byId('card'));
+    L.DomEvent.disableScrollPropagation(byId('card'));
+    byId('map').closest('.analysis-view-body').addEventListener('scroll',positionCard,{passive:true});
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => {
+        if (isVisible()) {
+          map.invalidateSize({debounceMoveend:true});
+          positionCard();
+        }
+      }).observe(byId('map'));
+    }
+  }
+
+  function geometryIssue(record) {
+    if (!['measured','clear'].includes(record.state) || geometry(record)) return '';
+    if (record.state === 'clear') return 'La traza no tiene un eje de referencia en el callejero disponible de Caballito.';
+    return 'Los cruces no identifican un trayecto único en el callejero disponible de Caballito.';
+  }
+
+  function clearHoverTimeout() {
+    clearTimeout(hoverTimeout);
+    hoverTimeout = undefined;
+  }
+
+  function closeCard(restoreFocus = false) {
+    clearHoverTimeout();
+    if (!activeCard) return;
+    const {entry,trigger} = activeCard;
+    const card = byId('card');
+    const hadFocus = card.contains(document.activeElement);
+    activeCard = null;
+    entry.line.setStyle({weight:6});
+    card.classList.remove('is-visible');
+    card.inert = true;
+    card.setAttribute('aria-hidden','true');
+    if (restoreFocus && hadFocus) {
+      if (trigger?.isConnected) trigger.focus();
+      else byId('map').focus({preventScroll:true});
+    }
+  }
+
+  function scheduleCardClose(entry) {
+    if (!activeCard || activeCard.pinned || activeCard.entry !== entry) return;
+    clearHoverTimeout();
+    hoverTimeout = setTimeout(() => {
+      hoverTimeout = undefined;
+      if (activeCard?.entry === entry && !activeCard.pinned && !byId('card').matches(':hover')) closeCard();
+    },140);
+  }
+
+  function positionCard() {
+    if (!activeCard) return;
+    const card = byId('card');
+    const container = byId('map');
+    const box = container.getBoundingClientRect();
+    const viewport = container.closest('.analysis-view-body').getBoundingClientRect();
+    const top = Math.max(54,Math.max(0,viewport.top)-box.top+8);
+    const bottom = Math.min(container.clientHeight-22,Math.min(window.innerHeight,viewport.bottom)-box.top-8);
+    if (bottom-top < 40) {
+      closeCard();
+      return;
+    }
+    card.style.maxHeight = (bottom-top)+'px';
+    const point = map.latLngToContainerPoint(activeCard.anchor);
+    const maxX = container.clientWidth - card.offsetWidth - 10;
+    const maxY = bottom - card.offsetHeight;
+    const x = point.x + card.offsetWidth + 14 <= container.clientWidth ? point.x+12 : point.x-card.offsetWidth-12;
+    const y = point.y-card.offsetHeight-12 >= top ? point.y-card.offsetHeight-12 : point.y+12;
+    card.style.left = Math.max(50,Math.min(maxX,x))+'px';
+    card.style.top = Math.max(top,Math.min(maxY,y))+'px';
+  }
+
+  function showCard(entry, anchor, pinned = false, trigger) {
+    if (drawn.get(entry.key) !== entry || (!pinned && activeCard?.pinned)) return;
+    clearHoverTimeout();
+    if (!pinned && activeCard?.entry === entry) return;
+    if (activeCard?.entry !== entry) closeCard();
+    const {record} = entry;
+    const card = byId('card');
+    const clear = record.state === 'clear';
+    activeCard = {entry,anchor:anchor || entry.anchor,pinned,trigger};
+    entry.line.setStyle({weight:8});
+    entry.line.bringToFront();
+    byId('card-title').textContent = record.trace;
+    byId('card-date').textContent = formatDate(record.date)+' · '+record.time+' (Buenos Aires)';
+    byId('card-status').textContent = clear ? 'Sin congestión registrada por Waze' : 'Tramo con congestión';
+    byId('card-route').textContent = clear ? references[record.traceKey][2] : record.from+' → '+record.to;
+    byId('card-direction').textContent = clear ? '' : record.direction;
+    const speed = clear ? '' : record.speed;
+    const travelTime = clear ? '' : record.duration;
+    byId('card-metrics').hidden = !speed && !travelTime;
+    byId('card-speed-metric').hidden = !speed;
+    byId('card-time-metric').hidden = !travelTime;
+    byId('card-speed').textContent = speed ? speed+' km/h' : '';
+    byId('card-travel-time').textContent = travelTime ? travelTime+' min' : '';
+    byId('card-observations').hidden = !record.notes;
+    byId('card-notes').textContent = record.notes || '';
+    byId('card-source').textContent = 'Waze Traffic View · Relevamiento manual';
+    const close = byId('card-close');
+    close.hidden = !pinned;
+    card.setAttribute('role',pinned ? 'dialog' : 'tooltip');
+    card.setAttribute('aria-hidden','false');
+    card.inert = false;
+    card.classList.add('is-visible');
+    positionCard();
+    if (activeCard && pinned && trigger) close.focus({preventScroll:true});
+  }
+
+  function roadVisibility(entry, hidden) {
+    for (const layer of [entry.line,entry.outline]) layer.getElement()?.classList.toggle('cm-road-hidden',hidden);
+  }
+
+  function removeRoad(entry) {
+    clearTimeout(entry.timer);
+    entry.line.off();
+    lines.removeLayer(entry.line);
+    lines.removeLayer(entry.outline);
+  }
+
+  function clearRetiring() {
+    for (const entry of retiring.values()) removeRoad(entry);
+    retiring.clear();
+  }
+
+  function roadKey(record,path) {
+    if (record.state === 'clear') return JSON.stringify(path);
+    const start = String(path[0]);
+    const end = String(path.at(-1));
+    return JSON.stringify(start <= end ? path : path.slice().reverse());
+  }
+
+  function updateRoads(paths, animate) {
+    if (!lines) return new Map();
+    if (!animate) clearRetiring();
+    for (const [key,entry] of drawn) {
+      if (paths.has(key)) continue;
+      drawn.delete(key);
+      if (!animate) {
+        removeRoad(entry);
+        continue;
+      }
+      roadVisibility(entry,true);
+      retiring.set(key,entry);
+      entry.timer = setTimeout(() => {
+        removeRoad(entry);
+        retiring.delete(key);
+      },390);
+    }
+    const entries = new Map();
+    const entering = [];
+    for (const [key,{record,path}] of paths) {
+      const color = colors.get(record.state === 'clear' ? 'verde' : record.color);
+      let entry = drawn.get(key) || retiring.get(key);
+      if (entry) {
+        clearTimeout(entry.timer);
+        retiring.delete(key);
+        roadVisibility(entry,false);
+        if (entry.color !== color) entry.line.setStyle({color});
+      } else {
+        const className = animate ? 'cm-road cm-road-hidden' : 'cm-road';
+        const outline = L.polyline(path,{color:'#171717',weight:10,interactive:false,smoothFactor:0,className}).addTo(lines);
+        const line = L.polyline(path,{
+          color,weight:6,smoothFactor:0,className:className+' cm-road-data',bubblingMouseEvents:false
+        }).addTo(lines);
+        const points = record.state === 'clear' ? path[0] : path;
+        entry = {key,line,outline,anchor:points[Math.floor((points.length-1)/2)]};
+        line.on('mouseover',event => {
+          const origin = event.originalEvent;
+          if (hoverPointer?.matches && origin?.pointerType !== 'touch' && !origin?.sourceCapabilities?.firesTouchEvents) {
+            showCard(entry,event.latlng);
+          }
+        });
+        line.on('mouseout',() => scheduleCardClose(entry));
+        line.on('click',event => showCard(entry,event.latlng,true));
+        if (animate) entering.push(entry);
+      }
+      entry.record = record;
+      entry.color = color;
+      drawn.set(key,entry);
+      entries.set(record.id,entry);
+    }
+    // La opacidad inicial se aplica en el SVG antes de iniciar el fundido.
+    entering[0]?.line.getElement()?.getBoundingClientRect();
+    for (const entry of entering) roadVisibility(entry,false);
+    return entries;
+  }
+
+  function resultElement(record, entry) {
+    const segment = record.control !== 'SIN DATOS' && record.from && record.to ? ' · '+record.from+' – '+record.to : '';
+    const label = record.trace+segment+' · '+states[record.state];
+    if (entry) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'analysis-back-btn';
+      button.textContent = label;
+      button.setAttribute('aria-haspopup','dialog');
+      button.addEventListener('click',() => showCard(entry,null,true,button));
+      return button;
+    }
+    const details = document.createElement('details');
+    details.className = 'cm-review';
+    const summary = document.createElement('summary');
+    summary.textContent = label;
+    const description = document.createElement('p');
+    description.textContent = [record.reason || geometryIssue(record),
+      record.control === 'SIN DATOS' ? references[record.traceKey]?.[2] :
+        [record.speed && record.speed+' km/h',record.duration && record.duration+' min',record.color,record.direction].filter(Boolean).join(' · '),
+      record.notes].filter(Boolean).join(' · ');
+    details.append(summary,description);
+    return details;
+  }
+
+  function render({force = false, frame = false, animate = false} = {}) {
+    const date = byId('date').value;
+    const time = officialHours[selectedTimeStep];
+    const trace = byId('trace').value;
+    const state = byId('state').value;
+    const day = records.filter(record => record.date === date);
+    const hour = filterRecords(day,{date,time});
+    const slot = trace ? hour.filter(record => record.traceKey === trace) : hour;
+    const next = slot.filter(record => record.state !== 'pending' && (!state || record.state === state));
+    const review = slot.filter(record => record.state !== 'pending' && (record.reason || geometryIssue(record)));
+    const context = JSON.stringify([date,time,trace,state,slot.map(({id,...record}) => record)]);
+    const count = (field,value) => slot.filter(record => record[field] === value).length;
+    const pending = count('control','PENDIENTE');
+    const valid = next.filter(record => record.state === 'measured' || record.state === 'clear');
+    const resolved = valid.filter(record => geometry(record)).length;
+    function renderAudit() {
+      byId('audit').textContent = date
+        ? 'CSV recibido '+receivedCount+' filas de datos · Parseadas '+parsedCount+' · Fecha '+day.length+
+          ' · Horario '+hour.length+' · Traza '+slot.length+' · Control automático · COMPLETO '+count('control','COMPLETO')+
+          ' · SIN DATOS '+count('control','SIN DATOS')+' · PENDIENTE '+pending+' · Válidas tras filtros '+valid.length+
+          ' · Con geometría '+resolved+' · Dibujadas '+drawn.size
+        : '';
+    }
+    if (!force && context === renderedContext) {
+      renderAudit();
+      return;
+    }
+    renderedContext = context;
+    let measured = 0;
+    let clear = 0;
+    const bounds = [];
+    const paths = new Map();
+    const displayed = [...new Set([...next,...review])];
+    for (const record of displayed) {
+      const filteredIn = !state || record.state === state;
+      if (filteredIn && record.state === 'measured') measured++;
+      if (filteredIn && record.state === 'clear') clear++;
+      const path = filteredIn ? geometry(record) : null;
+      if (path && lines) {
+        paths.set(roadKey(record,path),{record,path});
+        bounds.push(...(record.state === 'clear' ? path.flat() : path));
+      }
+    }
+    closeCard();
+    const entries = updateRoads(paths,animate && !reducedMotion?.matches);
+    byId('results').replaceChildren(...displayed.map(record => resultElement(record,entries.get(record.id))));
+    byId('counts').textContent = date && time
+      ? formatDate(date) + ' · ' + time + ' · Con congestión '+measured+' · Sin congestión registrada '+clear+
+        ' · Pendientes '+pending+' · Registros a revisar '+review.length+' · En el mapa '+drawn.size
+      : '';
+    const reasons = new Map();
+    for (const record of review) {
+      const reason = record.reason || geometryIssue(record);
+      reasons.set(reason,(reasons.get(reason) || 0)+1);
+    }
+    const pendingOnly = slot.length > 0 && pending === slot.length;
+    const emptyMessage = pendingOnly ? 'Todos los relevamientos de este horario están pendientes.' :
+      'Sin tramos para los filtros seleccionados.';
+    byId('warnings').textContent = [...reasons].map(([reason,total]) => total+' · '+reason).join(' ') ||
+      (date && !valid.length ? emptyMessage : '');
+    renderAudit();
+    if (frame && map && bounds.length && initialFramePending && view().classList.contains('active')) {
+      map.invalidateSize({pan:false});
+      map.fitBounds(bounds,{padding:[22,22],maxZoom:17,animate:false});
+      initialFramePending = false;
+    }
+  }
+
+  function setStatus(message, error = false) {
+    byId('load-status').textContent = message;
+    byId('load-status').toggleAttribute('data-error',error);
+  }
+
+  async function refresh() {
+    if (request || !isVisible()) return;
+    const current = new AbortController();
+    request = current;
+    byId('refresh').disabled = true;
+    setStatus('Cargando Registro Waze…');
+    const timeout = setTimeout(() => current.abort(),18000);
+    try {
+      const response = await fetch(csvUrl,{cache:'no-store',signal:current.signal});
+      if (!response.ok) throw new Error('La fuente respondió con HTTP ' + response.status + '.');
+      const csv = await response.text();
+      let received = 0;
+      const parsed = parseCsv(csv, count => { received = count; });
+      if (current.signal.aborted) throw new Error('Se agotó el tiempo de espera.');
+      const validContext = parsed.filter(record => record.date && record.traceKey && record.time);
+      if (!validContext.length) throw new Error('El CSV no contiene registros con fecha, horario y traza válidos.');
+      records = validContext;
+      const firstLoad = lastSuccess === null;
+      const unchanged = csv === lastCsv;
+      if (!unchanged) {
+        closeCard();
+        clearRetiring();
+      }
+      lastCsv = csv;
+      receivedCount = received;
+      parsedCount = parsed.length;
+      lastSuccess = Date.now();
+      updateFilters(firstLoad);
+      if (isVisible()) render({frame:firstLoad});
+      byId('last-updated').textContent = 'Última actualización exitosa · ' +
+        new Intl.DateTimeFormat('es-AR',{timeZone,dateStyle:'short',timeStyle:'medium'}).format(lastSuccess) + ' (Buenos Aires)';
+      const excluded = parsed.length - validContext.length;
+      setStatus(excluded ? excluded + ' registros sin fecha, horario o traza verificables quedaron fuera de los filtros.' :
+        unchanged ? 'Google entregó el mismo CSV que en la consulta anterior.' : '');
+    } catch (error) {
+      const detail = current.signal.aborted ? 'Se agotó el tiempo de espera.' : error instanceof TypeError
+        ? 'La fuente no está disponible desde este navegador.' : error.message;
+      setStatus('No se pudo actualizar Registro Waze. '+detail+
+        (lastSuccess !== null ? ' Se conserva la última carga exitosa. Los datos podrían estar desactualizados.' : ''),true);
+    } finally {
+      clearTimeout(timeout);
+      request = null;
+      byId('refresh').disabled = false;
+    }
+  }
+
+  let initialized = false;
+  function isVisible() {
+    return view().classList.contains('active') && !document.hidden;
+  }
+
+  function syncVisibility() {
+    if (!isVisible()) {
+      finishTimeDrag(false,false);
+      byId('slider').classList.remove('is-snapping');
+      closeCard();
+      clearRetiring();
+      if (refreshTimer !== null) clearInterval(refreshTimer);
+      refreshTimer = null;
+      return;
+    }
+    if (refreshTimer !== null) return;
+    refreshTimer = setInterval(refresh,refreshPeriod);
+    if (lastSuccess !== null) render();
+    if (lastSuccess === null || Date.now()-lastSuccess >= refreshPeriod) refresh();
+  }
+
+  function open() {
+    if (!initialized) {
+      initialized = true;
+      for (const id of ['date','trace','state']) {
+        byId(id).addEventListener('change',() => render({frame:true}));
+      }
+      const changeTime = step => {
+        finishTimeDrag(false,false);
+        byId('slider').classList.remove('is-snapping');
+        setTimeStep(step);
+        render({animate:true});
+      };
+      const slider = byId('slider');
+      const input = byId('time');
+      input.addEventListener('input',() => {
+        if (timeDrag) input.value = String(selectedTimeStep);
+        else changeTime(Number(input.value));
+      });
+      slider.addEventListener('pointerdown',startTimeDrag);
+      slider.addEventListener('lostpointercapture',cancelTimeDrag);
+      byId('thumb-motion').addEventListener('transitionend',event => {
+        if (event.propertyName === 'transform') slider.classList.remove('is-snapping');
+      });
+      for (const button of byId('hours').children) {
+        button.addEventListener('click',() => changeTime(Number(button.dataset.step)));
+      }
+      byId('refresh').addEventListener('click',refresh);
+      byId('card').addEventListener('pointerenter',clearHoverTimeout);
+      byId('card').addEventListener('pointerleave',() => scheduleCardClose(activeCard?.entry));
+      byId('card-close').addEventListener('click',() => closeCard(true));
+      document.addEventListener('keydown',event => {
+        if (event.key === 'Escape' && timeDrag) {
+          event.preventDefault();
+          finishTimeDrag(false);
+        } else if (event.key === 'Escape' && activeCard && isVisible()) {
+          event.preventDefault();
+          closeCard(true);
+        }
+      });
+      document.addEventListener('pointerdown',event => {
+        if (activeCard && (!byId('map').contains(event.target) || event.target.closest?.('.leaflet-control'))) closeCard();
+      });
+      reducedMotion?.addEventListener?.('change',() => {
+        if (reducedMotion.matches) {
+          slider.classList.remove('is-snapping');
+          clearRetiring();
+          byId('time-label').getAnimations?.().forEach(animation => animation.cancel());
+        }
+      });
+      new MutationObserver(syncVisibility).observe(view(),{attributes:true,attributeFilter:['class']});
+      document.addEventListener('visibilitychange',syncVisibility);
+    }
+    const previousMap = map;
+    mapEnsure();
+    const restoredMap = !previousMap && map && lastSuccess !== null;
+    requestAnimationFrame(() => {
+      if (!isVisible()) return;
+      map?.invalidateSize({debounceMoveend:true});
+      if (restoredMap) render({force:true,frame:true});
+    });
+    syncVisibility();
+  }
+
+  return {open};
+})();
 
 // ════════════════════════════════════════════
 //  CSV PARSER
